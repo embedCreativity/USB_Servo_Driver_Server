@@ -26,12 +26,12 @@
 #define VERBOSE
 #define   SERIALTHREAD
 //#define WEBCAM
-//#define SOCKET
 
 /* ------------------------------------------------------------ */
 /*              Include File Definitions                        */
 /* ------------------------------------------------------------ */
 #include <sys/types.h>
+#include <sys/stat.h> // umask()
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
@@ -51,7 +51,6 @@
 //seperate thread that handles incoming serial communications
 #include "serialthread.h"
 #include "SerialControl.h" /* my Serial comm functions */
-#include "Console.h"
 #include "TLV_definitions.h"
 
 
@@ -236,7 +235,6 @@ int main(int argc, char *argv[]) {
     }
 #endif
 
-#ifdef SOCKET
     /* Create the TCP socket */
     if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         Die("Failed to create socket");
@@ -276,11 +274,9 @@ int main(int argc, char *argv[]) {
     if (listen(serversock, MAXPENDING) < 0) {
         Die("Failed to listen on server socket");
     }
-#endif
 
     /* Run until cancelled */
     while (fTrue) {
-#ifdef SOCKET
         unsigned int clientlen = sizeof(echoclient);
         /* Wait for client connection */
         if ((clientsock = accept(serversock, (struct sockaddr *) &echoclient, &clientlen)) < 0) {
@@ -291,9 +287,6 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Client connected: %s", inet_ntoa(echoclient.sin_addr));
         HandleClient(clientsock);
         syslog(LOG_INFO, "Client disconnected.");
-#else
-        Console();
-#endif
     }
 
     /* Prepare to exit the daemon process.  Free any resources before exit. */
@@ -302,7 +295,6 @@ int main(int argc, char *argv[]) {
 
 } //end main()
 
-#ifdef SOCKET
 /* ------------------------------------------------------------ */
 /***    HandleClient
 **
@@ -324,120 +316,16 @@ int main(int argc, char *argv[]) {
 */
 void HandleClient(int sock) {
                                                         //TODO: fix the #if defined switches, they don't work...
-    char rgchUserName[BUFFSIZE / 2];
-    char rgchPassword[BUFFSIZE / 2];
-    char rgchFilePath[BUFFSIZE];
     uint8_t buffer[BUFFSIZE];
-    char *pch; //strtok helper
-    uint8_t output[BUFFSIZE]; //debug for spoofing data back to the server
     int     received;
     uint8_t i; //general index
-    FILE *hUserCredentials; //file containing user connection properties
-
-    //Receive the login credentials from the connected client
-    received = recv(sock, buffer, BUFFSIZE, 0);
-    buffer[received - 1] = '\0'; //ensure NULL termination at end of input
-
-#if defined(DEBUG)
-    fprintf(stdout, "Received from Client: %s\n", buffer);
-#else
-    syslog(LOG_INFO, "Received from Client: %s", buffer);
-#endif
-
-    pch = strtok(buffer, ";.\r\n\0"); //look for username
-    strcpy(rgchUserName, pch);
-    pch = strtok(NULL, ";.\r\n\0"); //look for password
-    assert(pch != NULL); //chose suicide over segmentation fault
-    strcpy(rgchPassword, pch);
-
-    //Analyze password received from client
-#if defined(DEBUG)
-    fprintf(stdout, "UserName received from Client: %s\n", rgchUserName);
-    fprintf(stdout, "Password received from Client: %s\n", rgchPassword);
-#else
-    syslog(LOG_INFO, "UserName received from Client: %s", rgchUserName);
-    syslog(LOG_INFO, "Password received from Client: %s", rgchPassword);
-#endif
-
-    //Attempt to open account file for user name
-    assert( (strlen(FILEPATH)) +(strlen(rgchUserName)) + (strlen(FILEEXTENSION))\
-                                                < BUFFSIZE ); //overflow protection
-    //build the complete file name/path
-    strcpy(rgchFilePath, FILEPATH);
-    strcat(rgchFilePath, rgchUserName);
-    strcat(rgchFilePath, FILEEXTENSION);
-
-    hUserCredentials = fopen(rgchFilePath, "r");
-    if (hUserCredentials != NULL) {
-    #if defined(DEBUG)
-        fprintf(stdout, "File successfully opened!\n");
-    #else
-        syslog(LOG_INFO, "File successfully opened!");
-    #endif
-
-        fgets(buffer, BUFFSIZE, hUserCredentials);
-/*TODO: Do not close file yet.  Implement a mechanism that will continue to read into the file for
-        user properties, such as max login count, time limit, etc... After that is read in, close file. */
-        fclose(hUserCredentials);
-
-        pch = strtok(buffer, "\r\n\0"); //ensure ends are trimmed off
-        //Check password found in user credential file
-        if (strcmp(rgchPassword, pch) == 0) { //check for correct password
-            fprintf(stdout, "Client authenticated.\n");
-            strncpy(buffer, MSGPASS, strlen(MSGPASS)); //copy pass message to output string
-            buffer[strlen(MSGPASS)] = '\0'; //ensure NULL termination
 
     #if defined(WEBCAM)
-            //Start webcam thread
-            if (pthread_create(&threadWebcam, NULL, Webcam, (void *)lThreadID)) {
-                printf("ERROR;  pthread_create(&threadWebcam... \n");
-            } //end if
+    //Start webcam thread
+    if (pthread_create(&threadWebcam, NULL, Webcam, (void *)lThreadID)) {
+        printf("ERROR;  pthread_create(&threadWebcam... \n");
+    } //end if
     #endif
-            //send pass message to client
-            if (send(sock, buffer, (strlen(buffer)+1), 0) != (strlen(buffer)+1)) {
-                close(sock);
-                Die("Failed to send bytes to client");
-            }
-        }
-        //The client failed to correctly authenticate
-        else {
-        #if defined(DEBUG)
-            fprintf(stdout, "Client denied access.\n");
-        #else
-            syslog(LOG_INFO, "Client password incorrect, denied access");
-        #endif
-            /* Send back received data */
-            strncpy(buffer, MSGFAIL, strlen(MSGFAIL));
-            buffer[strlen(MSGFAIL)] = '\0'; //NULL terminate
-
-            if (send(sock, buffer, (strlen(MSGFAIL)+1), 0) != (strlen(MSGFAIL)+1)) {
-                close(sock);
-                Die("Failed to send bytes to client");
-            }
-            close(sock); //close socket
-            return;
-        }
-    }
-    else {
-    #if defined(DEBUG)
-        fprintf(stdout, "File failed to open...\n");
-        fprintf(stdout, "Client denied access.\n");
-    #else
-        syslog(LOG_INFO, "File failed to open...");
-        syslog(LOG_INFO, "Client denied access.");
-    #endif
-
-        /* Send back received data */
-        strncpy(buffer, MSGFAIL, strlen(MSGFAIL));
-        buffer[strlen(MSGFAIL)] = '\0'; //NULL terminate
-
-        if (send(sock, buffer, (strlen(MSGFAIL)+1), 0) != (strlen(MSGFAIL)+1)) {
-            close(sock);
-            Die("Failed to send bytes to client");
-        }
-        close(sock); //close socket
-        return;
-    }
 
     /**************** Main TCP linked section **************************/
     while(fTrue) {
@@ -447,13 +335,8 @@ void HandleClient(int sock) {
             break;
         }
 
-        //Populate sensor data packet and send it
-        output[0] ^= 0b11000001;
-        output[1] = buffer[0];
-        output[2] = buffer[1];
-
         //Respond by sending our sensor data packet
-        if (send(sock, output, SERVERPACKETLEN, 0) != SERVERPACKETLEN) {
+        if (send(sock, buffer, SERVERPACKETLEN, 0) != SERVERPACKETLEN) {
             close(sock);
             Die("Failed to send bytes to client");
         }
@@ -462,7 +345,6 @@ void HandleClient(int sock) {
 
     close(sock);
 } //end HandleClient()
-#endif
 
 #ifdef WEBCAM
 /* ------------------------------------------------------------ */
