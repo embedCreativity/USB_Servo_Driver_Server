@@ -20,6 +20,7 @@
 /*  Revision History:                                                   */
 /*                                                                      */
 /*  02/02/2009 (MarkT): created                                         */
+/*  10/11/2016 (MarkT): updated to remove dependence on ascii strings   */
 /*                                                                      */
 /************************************************************************/
 
@@ -48,7 +49,7 @@
 /* ------------------------------------------------------------ */
 
 int fd;
-        
+
 /* ------------------------------------------------------------ */
 /*              Local Variables                                 */
 /* ------------------------------------------------------------ */
@@ -83,13 +84,13 @@ int fd;
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 */
 int SerialWriteNBytes(uint8_t *rgbChars, int n) {
 
     int i;
-    
+
     for(i = 0; i < n; i++) {
 
         int n = write(fd, rgbChars, 1);
@@ -123,7 +124,7 @@ int SerialWriteNBytes(uint8_t *rgbChars, int n) {
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 */
 int SerialWriteByte(uint8_t *pByte) {
@@ -150,8 +151,8 @@ int SerialWriteByte(uint8_t *pByte) {
 **      *result         pointer to string
 **
 **  Return Values:
-**      0               failure
-**      1               success
+**      number of characters read on success
+**      -1 on error
 **
 **  Errors:
 **      none
@@ -159,23 +160,26 @@ int SerialWriteByte(uint8_t *pByte) {
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Places the read NULL terminated string into *result.
 */
 int SerialRead(char *result) {
-    int iIn = read(fd, result, 256);
-    result[iIn-1] = 0x00; //NULL Terminate//make sure it is terminated
-    if (iIn < 0) {
+    int bytesRead;
+
+    bytesRead = read(fd, result, 256);
+
+    if (bytesRead < 0) {
         if (errno == EAGAIN) {
             printf("SERIAL EAGAIN ERROR\n");
-            return 0;
+            return -1;
         } else {
             printf("SERIAL read error %d %s\n", errno, strerror(errno));
-            return 0;
+            return -1;
         }
-    }                    
-    return 1;
+    }
+
+    return bytesRead;
 }
 
 /* ------------------------------------------------------------ */
@@ -196,7 +200,7 @@ int SerialRead(char *result) {
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Places the defined baud rate value into inputSpeed and returns.
 */
@@ -252,7 +256,7 @@ int SerialGetBaud( void ) {
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Opens the serial port with a baud rate of 9600.  No parity or flow control.
 **      One stop bit.
@@ -261,12 +265,12 @@ int SerialInit(char *szDevice) {
 
     struct termios options;
     char rgchBuf[32];
-    
+
 #ifdef  USE_XUART
     system("xuartctl --port 0 --server --speed 38400");
     strcpy(rgchBuf, "/dev/pts/1");
     fd = open(rgchBuf, O_RDWR | O_NOCTTY | O_NDELAY);
-#else   
+#else
     strcpy(rgchBuf, szDevice);
     fd = open(szDevice, O_RDWR | O_NOCTTY | O_NDELAY);
 #endif
@@ -277,8 +281,8 @@ int SerialInit(char *szDevice) {
     } else {
         fcntl(fd, F_SETFL, 0);
     }
-    
-#ifndef USE_XUART   
+
+#ifndef USE_XUART
     // Get the current options for the port...
     tcgetattr(fd, &options);
     // Set the baud rates
@@ -306,7 +310,7 @@ int SerialInit(char *szDevice) {
 **      void SerialClose( void)
 **
 **  Parameters:
-**      
+**
 **
 **  Return Values:
 **
@@ -317,7 +321,7 @@ int SerialInit(char *szDevice) {
 **  Description:
 **      Uses the a globally defined integer "file descriptor" fd to write
 **      to the serial port.  The serial port must be previously opened and
-**      the fd must be the assigned file descriptor for the serial port.  
+**      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Closes the fd file descriptor.
 */

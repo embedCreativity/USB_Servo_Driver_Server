@@ -1,6 +1,6 @@
 /************************************************************************/
 /*                                                                      */
-/*  servoServer.c    --  Main program module                            */
+/*  socketToSerial.c    --  Main program module                         */
 /*                                                                      */
 /************************************************************************/
 /*  Author:     Mark Taylor                                             */
@@ -24,7 +24,6 @@
 
 //compilation directives
 #define VERBOSE
-#define   SERIALTHREAD
 //#define WEBCAM
 
 /* ------------------------------------------------------------ */
@@ -49,7 +48,6 @@
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
 
 //seperate thread that handles incoming serial communications
-#include "serialthread.h"
 #include "SerialControl.h" /* my Serial comm functions */
 #include "TLV_definitions.h"
 
@@ -63,14 +61,11 @@
 #define fTrue           !fFalse
 
 #define MAXPENDING      1    /* Max connection requests */
-#define BUFFSIZE        64
+#define BUFFSIZE        1500
 
-#define SERVERPACKETLEN 3
-#define CLIENTPACKETLEN 6
+#define LEN_SERIAL_PORT 32
 
-#define PORTNUM     50000 //port number that the server will listen on
-
-#define DAEMON_NAME "webrobotserver"
+#define DAEMON_NAME "serialServer"
 
 /* ------------------------------------------------------------ */
 /*              Global Variables                                */
@@ -78,6 +73,9 @@
 
 long    lThreadID;
 pthread_t threadWebcam; //handle to the thread
+
+char *serialPort;
+int portNum;
 
 /* ------------------------------------------------------------ */
 /*              Local Variables                                 */
@@ -156,10 +154,13 @@ int main(int argc, char *argv[]) {
     int serversock, clientsock, flag;
     struct sockaddr_in echoserver, echoclient;
 
-    if (argc != 1) {
-        fprintf(stderr, "USAGE: WebRobotServer <no arguments are needed>\n");
+    if (argc != 3) {
+        fprintf(stderr, "USAGE: %s <path to serial port> <socket port number>\n", argv[0]);
         exit(1);
     }
+
+    strncpy(serialPort, (char*)argv[1], LEN_SERIAL_PORT);
+    portNum = atoi(argv[2]);
 
 #if defined(DEBUG)
     int daemonize = 0;
@@ -223,18 +224,6 @@ int main(int argc, char *argv[]) {
         close(STDERR_FILENO);
     }
 
-/*********************************
-*       Spawn Serial Thread option
-*********************************/
-#ifdef SERIALTHREAD
-    if(SpawnSerialThread()) {
-        printf("Serial communication thread spawned successfully.\n");
-    }
-    else {
-        printf("Serial communication thread FAILED to spawn\n");
-    }
-#endif
-
     /* Create the TCP socket */
     if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
         Die("Failed to create socket");
@@ -263,7 +252,7 @@ int main(int argc, char *argv[]) {
     memset(&echoserver, 0, sizeof(echoserver));         /* Clear struct */
     echoserver.sin_family = AF_INET;                    /* Internet/IP */
     echoserver.sin_addr.s_addr = htonl(INADDR_ANY);     /* Incoming addr */
-    echoserver.sin_port = htons(PORTNUM);               /* server port */
+    echoserver.sin_port = htons(portNum);               /* server port */
 
     /* Bind the server socket */
     if (bind(serversock, (struct sockaddr *) &echoserver,
@@ -315,7 +304,7 @@ int main(int argc, char *argv[]) {
 **
 */
 void HandleClient(int sock) {
-                                                        //TODO: fix the #if defined switches, they don't work...
+
     uint8_t buffer[BUFFSIZE];
     int     received;
     uint8_t i; //general index
@@ -327,19 +316,29 @@ void HandleClient(int sock) {
     } //end if
     #endif
 
+    // Bring up the serial port
+    if ( ! SerialInit(serialPort) ) {
+        Die("Failed to open serial port");
+    }
+
     /**************** Main TCP linked section **************************/
     while(fTrue) {
 
-        //if the length returned differs from what is expected, fail
-        if ( CLIENTPACKETLEN != recv(sock, buffer, BUFFSIZE, 0) ) {
-            break;
+        received = recv(sock, buffer, BUFFSIZE, 0);
+        if ( received > 0 ) {
+            // Send data over serial port
+            SerialWriteNBytes(buffer, received);
+
+            // Get response from serial
+            received = SerialRead(buffer);
+
+            // Send response back over socket
+            if (send(sock, buffer, received, 0) != received) {
+                close(sock);
+                Die("Failed to send bytes to client");
+            }
         }
 
-        //Respond by sending our sensor data packet
-        if (send(sock, buffer, SERVERPACKETLEN, 0) != SERVERPACKETLEN) {
-            close(sock);
-            Die("Failed to send bytes to client");
-        }
     }// end while
     /********************************************************************/
 
