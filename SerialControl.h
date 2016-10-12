@@ -21,13 +21,20 @@
 #if !defined(_SERIALCONTROL_H)
 #define _SERIALCONTOL_H
 
+#include <stdint.h>  /* for unsigned values*/
+#include <stdlib.h>
+#include <stdio.h>   /* Standard input/output definitions */
+#include <string.h>  /* String function definitions */
+#include <unistd.h>  /* UNIX standard function definitions */
+#include <fcntl.h>   /* File control definitions */
+#include <errno.h>   /* Error number definitions */
+#include <termios.h> /* POSIX terminal control definitions */
+#include <stdbool.h>
+
 /* ------------------------------------------------------------ */
 /*                  General Type Declarations                   */
 /* ------------------------------------------------------------ */
 
-// indicates we need to call TS specific system calls instead of Unix 
-// kernel calls.
-#define USE_XUART
 
 /* ------------------------------------------------------------ */
 /*                  Object Class Declarations                   */
@@ -46,9 +53,9 @@
 
 int     SerialWriteNBytes(uint8_t *rgbChars, int n);
 int     SerialWriteByte(uint8_t *pByte);
-int     SerialRead(char *result);
+int     SerialRead(uint8_t *result);
 int     SerialGetBaud(void);
-int     SerialInit(char *szDevice);
+bool    SerialInit(char *szDevice);
 void    SerialClose(void);
 
 /* ------------------------------------------------------------ */

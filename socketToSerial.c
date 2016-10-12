@@ -74,7 +74,7 @@
 long    lThreadID;
 pthread_t threadWebcam; //handle to the thread
 
-char *serialPort;
+char serialPort[LEN_SERIAL_PORT];
 int portNum;
 
 /* ------------------------------------------------------------ */
@@ -120,6 +120,7 @@ void signal_handler(int sig) {
     switch(sig) {
         case SIGHUP:
             syslog(LOG_WARNING, "Received SIGHUP signal.");
+            exit(1);
             break;
         case SIGTERM:
             syslog(LOG_WARNING, "Received SIGTERM signal.");
@@ -307,7 +308,6 @@ void HandleClient(int sock) {
 
     uint8_t buffer[BUFFSIZE];
     int     received;
-    uint8_t i; //general index
 
     #if defined(WEBCAM)
     //Start webcam thread
@@ -330,13 +330,13 @@ void HandleClient(int sock) {
             SerialWriteNBytes(buffer, received);
 
             // Get response from serial
-            received = SerialRead(buffer);
+            /*received = SerialRead(buffer);
 
             // Send response back over socket
             if (send(sock, buffer, received, 0) != received) {
                 close(sock);
                 Die("Failed to send bytes to client");
-            }
+            }*/
         }
 
     }// end while

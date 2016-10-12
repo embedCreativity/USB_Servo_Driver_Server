@@ -1,4 +1,5 @@
 LIBS += -lpthread
+CFLAGS += -g -Wall
 
 socketToSerial: socketToSerial.o SerialControl.o
 	$(CC) $(LDFLAGS) socketToSerial.o SerialControl.o -o socketToSerial $(LIBS)

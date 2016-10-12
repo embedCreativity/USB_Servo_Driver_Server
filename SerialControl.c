@@ -21,21 +21,15 @@
 /*                                                                      */
 /*  02/02/2009 (MarkT): created                                         */
 /*  10/11/2016 (MarkT): updated to remove dependence on ascii strings   */
+/*                      removed xuart stuff as I'm not likely going to  */
+/*                      to use anything from Technologic Systems ever   */
+/*                      again.                                          */
 /*                                                                      */
 /************************************************************************/
 
 /* ------------------------------------------------------------ */
 /*              Include File Definitions                        */
 /* ------------------------------------------------------------ */
-
-#include <stdint.h>  /* for unsigned values*/
-#include <stdlib.h>
-#include <stdio.h>   /* Standard input/output definitions */
-#include <string.h>  /* String function definitions */
-#include <unistd.h>  /* UNIX standard function definitions */
-#include <fcntl.h>   /* File control definitions */
-#include <errno.h>   /* Error number definitions */
-#include <termios.h> /* POSIX terminal control definitions */
 
 #include "SerialControl.h"
 
@@ -145,7 +139,7 @@ int SerialWriteByte(uint8_t *pByte) {
 /***    SerialRead
 **
 **  Synopsis:
-**      int SerialRead(char *result)
+**      int SerialRead(uint8_t *result)
 **
 **  Parameters:
 **      *result         pointer to string
@@ -164,7 +158,7 @@ int SerialWriteByte(uint8_t *pByte) {
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Places the read NULL terminated string into *result.
 */
-int SerialRead(char *result) {
+int SerialRead(uint8_t *result) {
     int bytesRead;
 
     bytesRead = read(fd, result, 256);
@@ -205,7 +199,6 @@ int SerialRead(char *result) {
 **      Places the defined baud rate value into inputSpeed and returns.
 */
 int SerialGetBaud( void ) {
-#ifndef USE_XUART
     struct termios termAttr;
     int inputSpeed = -1;
     speed_t baudRate;
@@ -228,13 +221,11 @@ int SerialGetBaud( void ) {
         case B9600:   inputSpeed = 9600; break;
         case B19200:  inputSpeed = 19200; break;
         case B38400:  inputSpeed = 38400; break;
+        case B57600:  inputSpeed = 57600; break;
+        case B115200:  inputSpeed = 115200; break;
+        case B230400:  inputSpeed = 230400; break;
     }
     return inputSpeed;
-
-#else
-    return 0;
-#endif
-
 }
 
 /* ------------------------------------------------------------ */
@@ -261,33 +252,26 @@ int SerialGetBaud( void ) {
 **      Opens the serial port with a baud rate of 9600.  No parity or flow control.
 **      One stop bit.
 */
-int SerialInit(char *szDevice) {
+bool SerialInit(char *szDevice) {
 
     struct termios options;
     char rgchBuf[32];
 
-#ifdef  USE_XUART
-    system("xuartctl --port 0 --server --speed 38400");
-    strcpy(rgchBuf, "/dev/pts/1");
-    fd = open(rgchBuf, O_RDWR | O_NOCTTY | O_NDELAY);
-#else
     strcpy(rgchBuf, szDevice);
     fd = open(szDevice, O_RDWR | O_NOCTTY | O_NDELAY);
-#endif
 
     if (fd == -1) {
         printf("Unable to open %s!", rgchBuf);
-        return 0; //indicate failure
+        return false;
     } else {
         fcntl(fd, F_SETFL, 0);
     }
 
-#ifndef USE_XUART
     // Get the current options for the port...
     tcgetattr(fd, &options);
     // Set the baud rates
-    cfsetispeed(&options, B9600);
-    cfsetospeed(&options, B9600);
+    cfsetispeed(&options, B115200);
+    cfsetospeed(&options, B115200);
     // Enable the receiver and set local mode...
     options.c_cflag |= (CLOCAL | CREAD);
 
@@ -298,7 +282,6 @@ int SerialInit(char *szDevice) {
 
     // Set the new options for the port...
     tcsetattr(fd, TCSANOW, &options); //change attributes NOW
-#endif //USE_XUART
 
     return 1;
 }
