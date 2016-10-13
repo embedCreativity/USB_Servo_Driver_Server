@@ -76,6 +76,7 @@ pthread_t threadWebcam; //handle to the thread
 
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
+int baudRate;
 
 /* ------------------------------------------------------------ */
 /*              Local Variables                                 */
@@ -155,13 +156,14 @@ int main(int argc, char *argv[]) {
     int serversock, clientsock, flag;
     struct sockaddr_in echoserver, echoclient;
 
-    if (argc != 3) {
-        fprintf(stderr, "USAGE: %s <path to serial port> <socket port number>\n", argv[0]);
+    if (argc != 4) {
+        fprintf(stderr, "USAGE: %s <path to serial port> <baud Rate> <socket port number>\n", argv[0]);
         exit(1);
     }
 
     strncpy(serialPort, (char*)argv[1], LEN_SERIAL_PORT);
-    portNum = atoi(argv[2]);
+    baudRate = atoi(argv[2]);
+    portNum = atoi(argv[3]);
 
 #if defined(DEBUG)
     int daemonize = 0;
@@ -317,7 +319,7 @@ void HandleClient(int sock) {
     #endif
 
     // Bring up the serial port
-    if ( ! SerialInit(serialPort) ) {
+    if ( ! SerialInit(serialPort, baudRate) ) {
         Die("Failed to open serial port");
     }
 

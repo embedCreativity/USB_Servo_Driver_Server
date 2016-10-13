@@ -55,7 +55,7 @@ int     SerialWriteNBytes(uint8_t *rgbChars, int n);
 int     SerialWriteByte(uint8_t *pByte);
 int     SerialRead(uint8_t *result);
 int     SerialGetBaud(void);
-bool    SerialInit(char *szDevice);
+bool    SerialInit(char *szDevice, int baudRate);
 void    SerialClose(void);
 
 /* ------------------------------------------------------------ */

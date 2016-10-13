@@ -228,6 +228,51 @@ int SerialGetBaud( void ) {
     return inputSpeed;
 }
 
+
+/* ------------------------------------------------------------ */
+/***    IntToBaud
+**
+**  Synopsis:
+**      int IntToBaud( void )
+**
+**  Parameters:
+**      int baud
+**
+**  Return Values:
+**      OS Baud Rate type
+**
+**  Errors:
+**      none
+**
+**  Description:
+*/
+speed_t IntToBaud( int baudRate ) {
+    speed_t osBaudRate;
+
+    switch (baudRate) {
+        case 0:         osBaudRate = B0; break;
+        case 50:        osBaudRate = B50; break;
+        case 110:       osBaudRate = B110; break;
+        case 134:       osBaudRate = B134; break;
+        case 150:       osBaudRate = B150; break;
+        case 200:       osBaudRate = B200; break;
+        case 300:       osBaudRate = B300; break;
+        case 600:       osBaudRate = B600; break;
+        case 1200:      osBaudRate = B1200; break;
+        case 1800:      osBaudRate = B1800; break;
+        case 2400:      osBaudRate = B2400; break;
+        case 4800:      osBaudRate = B4800; break;
+        case 9600:      osBaudRate = B9600; break;
+        case 19200:     osBaudRate = B19200; break;
+        case 38400:     osBaudRate = B38400; break;
+        case 57600:     osBaudRate = B57600; break;
+        case 115200:    osBaudRate = B115200; break;
+        case 230400:    osBaudRate = B230400; break;
+        default: osBaudRate = B0; break;
+    }
+    return osBaudRate;
+}
+
 /* ------------------------------------------------------------ */
 /***    SerialInit
 **
@@ -235,7 +280,8 @@ int SerialGetBaud( void ) {
 **      int SerialInit( char *szDevice )
 **
 **  Parameters:
-**      *szDevice           string indicating location of serial port "file"
+**      char *szDevice           string indicating location of serial port "file"
+**      int baudRate
 **
 **  Return Values:
 **      1                   success
@@ -252,7 +298,7 @@ int SerialGetBaud( void ) {
 **      Opens the serial port with a baud rate of 9600.  No parity or flow control.
 **      One stop bit.
 */
-bool SerialInit(char *szDevice) {
+bool SerialInit(char *szDevice, int baudRate) {
 
     struct termios options;
     char rgchBuf[32];
@@ -270,8 +316,8 @@ bool SerialInit(char *szDevice) {
     // Get the current options for the port...
     tcgetattr(fd, &options);
     // Set the baud rates
-    cfsetispeed(&options, B115200);
-    cfsetospeed(&options, B115200);
+    cfsetispeed(&options, IntToBaud(baudRate));
+    cfsetospeed(&options, IntToBaud(baudRate));
     // Enable the receiver and set local mode...
     options.c_cflag |= (CLOCAL | CREAD);
 
