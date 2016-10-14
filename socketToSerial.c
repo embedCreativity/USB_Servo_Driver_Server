@@ -88,7 +88,7 @@ extern SocketInterface_T socketIntf;
 
 void    Die(char *mess) { perror(mess); exit(1); }
 void    *Webcam(void *threadid);
-void    HandleClient(int sock);
+void    HandleClient( void );
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -120,12 +120,14 @@ void signal_handler(int sig) {
     switch(sig) {
         case SIGHUP:
             syslog(LOG_WARNING, "Received SIGHUP signal.");
+            SerialClose();
             socketIntf.Close(); // close connection to client
             socketIntf.Close(); // close socket
             exit(1);
             break;
         case SIGTERM:
             syslog(LOG_WARNING, "Received SIGTERM signal.");
+            SerialClose();
             socketIntf.Close(); // close connection to client
             socketIntf.Close(); // close socket
             exit(1);
@@ -154,10 +156,8 @@ void signal_handler(int sig) {
 **  Description:
 **      Main program module.
 */
-int main(int argc, char *argv[]) {
-
-    int serversock, clientsock, flag;
-    struct sockaddr_in echoserver, echoclient;
+int main(int argc, char *argv[])
+{
 
     if (argc != 4) {
         fprintf(stderr, "USAGE: %s <path to serial port> <baud Rate> <socket port number>\n", argv[0]);
@@ -241,36 +241,19 @@ int main(int argc, char *argv[]) {
 
     /* Run until cancelled */
     while (fTrue) {
-        unsigned int clientlen = sizeof(echoclient);
-        /* Wait for client connection */
-        if ((clientsock = accept(serversock, (struct sockaddr *) &echoclient, &clientlen)) < 0) {
-            fprintf(stdout, "clientsock = accept(serversock...    FAILED");
-            continue;
-        }
 
-        syslog(LOG_INFO, "Client connected: %s", inet_ntoa(echoclient.sin_addr));
-        HandleClient(clientsock);
+        syslog(LOG_INFO, "Client connected.");
+        HandleClient();
         syslog(LOG_INFO, "Client disconnected.");
 
-        /***************************/
-        bytesReceived = socketIntf.Read(buffer, 256);
-        if ( bytesReceived > 0 ) {
-            printf("We received %d bytes\n", bytesReceived);
-            printf("Message: %s\n", buffer);
+        // Re-open port and wait for client to connect
+        printf("Attempting to connect on port %d...\n", portNum);
+        if ( socketIntf.OpenAndConnect(portNum) ) {
+            printf("Connected!\n");
         } else {
-            socketIntf.Close(); // close connection to client
-            socketIntf.Close(); // close socket
-            // Open port and wait for client to connect
-            printf("Attempting to connect on port %d...\n", PORT_NUM);
-            if ( socketIntf.OpenAndConnect(PORT_NUM) ) {
-                printf("Connected!\n");
-            } else {
-                printf("Failed to connect!\n");
-                return 0;
-            }
-        }/****************************/
-
-
+            printf("Failed to connect!\n");
+            return 0;
+        }
     }
 
     /* Prepare to exit the daemon process.  Free any resources before exit. */
@@ -283,7 +266,7 @@ int main(int argc, char *argv[]) {
 /***    HandleClient
 **
 **  Synopsis:
-**      void    HandleClient(int sock)
+**      void    HandleClient()
 **
 **  Parameters:
 **      int sock, handle to TCP connection
@@ -298,7 +281,7 @@ int main(int argc, char *argv[]) {
 **      Directs control of application based on TCP traffic content.
 **
 */
-void HandleClient(int sock) {
+void HandleClient( void ) {
 
     uint8_t buffer[BUFFSIZE];
     int     received;
@@ -318,25 +301,23 @@ void HandleClient(int sock) {
     /**************** Main TCP linked section **************************/
     while(fTrue) {
 
-        received = recv(sock, buffer, BUFFSIZE, 0);
+        received = socketIntf.Read(buffer, BUFFSIZE);
         if ( received > 0 ) {
+            printf("-->%s\n", buffer);
             // Send data over serial port
             SerialWriteNBytes(buffer, received);
 
             // Get response from serial
-            /*received = SerialRead(buffer);
-
-            // Send response back over socket
-            if (send(sock, buffer, received, 0) != received) {
-                close(sock);
-                Die("Failed to send bytes to client");
-            }*/
+            received = SerialRead(buffer);
+            // Push serial response back to client over the socket
+            received = socketIntf.Write(buffer, received);
+        } else {
+            socketIntf.Close(); // close client connection
+            socketIntf.Close(); // close socket // may not be the best idea, ok for now
+            SerialClose(); // close the serial port
         }
-
     }// end while
     /********************************************************************/
-
-    close(sock);
 } //end HandleClient()
 
 #ifdef WEBCAM
