@@ -29,7 +29,7 @@
 /* ------------------------------------------------------------ */
 /*              Include File Definitions                        */
 /* ------------------------------------------------------------ */
-#include <sys/types.h>
+//#include <sys/types.h>
 #include <sys/stat.h> // umask()
 #include <stdio.h>
 #include <stdlib.h>
@@ -40,11 +40,8 @@
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include "../Socket/Socket.h"
 
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#include <netinet/in.h>
-#include <netinet/tcp.h>
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
 
 //seperate thread that handles incoming serial communications
@@ -77,6 +74,8 @@ pthread_t threadWebcam; //handle to the thread
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
 int baudRate;
+
+extern SocketInterface_T socketIntf;
 
 /* ------------------------------------------------------------ */
 /*              Local Variables                                 */
@@ -121,10 +120,14 @@ void signal_handler(int sig) {
     switch(sig) {
         case SIGHUP:
             syslog(LOG_WARNING, "Received SIGHUP signal.");
+            socketIntf.Close(); // close connection to client
+            socketIntf.Close(); // close socket
             exit(1);
             break;
         case SIGTERM:
             syslog(LOG_WARNING, "Received SIGTERM signal.");
+            socketIntf.Close(); // close connection to client
+            socketIntf.Close(); // close socket
             exit(1);
             break;
         default:
@@ -227,44 +230,13 @@ int main(int argc, char *argv[]) {
         close(STDERR_FILENO);
     }
 
-    /* Create the TCP socket */
-    if ((serversock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-        Die("Failed to create socket");
-    }
-
-    /* Disable the Nagle (TCP No Delay) algorithm */
-    flag = 1;
-    if (-1 == setsockopt( serversock, IPPROTO_TCP, TCP_NODELAY, (char *)&flag, sizeof(flag) ) ) {
-        printf("Couldn't setsockopt(TCP_NODELAY)\n");
-        exit( EXIT_FAILURE );
-    }
-    /* Set the Keep Alive property */
-    flag = 1;
-    if (-1 == setsockopt( serversock, SOL_SOCKET, SO_KEEPALIVE, (char *)&flag, sizeof(flag) ) ) {
-        printf("Couldn't setsockopt(SO_KEEPALIVE)\n");
-        exit( EXIT_FAILURE );
-    }
-    /* Allow the re-use of port numbers to avoid error */
-    flag = 1;
-    if (-1 == setsockopt( serversock, SOL_SOCKET, SO_REUSEADDR, (char *)&flag, sizeof(flag) ) ) {
-        printf("Couldn't setsockopt(SO_REUSEADDR)\n");
-        exit( EXIT_FAILURE );
-    }
-
-    /* Construct the server sockaddr_in structure */
-    memset(&echoserver, 0, sizeof(echoserver));         /* Clear struct */
-    echoserver.sin_family = AF_INET;                    /* Internet/IP */
-    echoserver.sin_addr.s_addr = htonl(INADDR_ANY);     /* Incoming addr */
-    echoserver.sin_port = htons(portNum);               /* server port */
-
-    /* Bind the server socket */
-    if (bind(serversock, (struct sockaddr *) &echoserver,
-                       sizeof(echoserver)) < 0) {
-        Die("Failed to bind the server socket");
-    }
-    /* Listen on the server socket */
-    if (listen(serversock, MAXPENDING) < 0) {
-        Die("Failed to listen on server socket");
+    // Open port and wait for client to connect
+    printf("Attempting to connect on port %d...\n", portNum);
+    if ( socketIntf.OpenAndConnect(portNum) ) {
+        printf("Connected!\n");
+    } else {
+        printf("Failed to connect!\n");
+        return 0;
     }
 
     /* Run until cancelled */
@@ -279,6 +251,26 @@ int main(int argc, char *argv[]) {
         syslog(LOG_INFO, "Client connected: %s", inet_ntoa(echoclient.sin_addr));
         HandleClient(clientsock);
         syslog(LOG_INFO, "Client disconnected.");
+
+        /***************************/
+        bytesReceived = socketIntf.Read(buffer, 256);
+        if ( bytesReceived > 0 ) {
+            printf("We received %d bytes\n", bytesReceived);
+            printf("Message: %s\n", buffer);
+        } else {
+            socketIntf.Close(); // close connection to client
+            socketIntf.Close(); // close socket
+            // Open port and wait for client to connect
+            printf("Attempting to connect on port %d...\n", PORT_NUM);
+            if ( socketIntf.OpenAndConnect(PORT_NUM) ) {
+                printf("Connected!\n");
+            } else {
+                printf("Failed to connect!\n");
+                return 0;
+            }
+        }/****************************/
+
+
     }
 
     /* Prepare to exit the daemon process.  Free any resources before exit. */
