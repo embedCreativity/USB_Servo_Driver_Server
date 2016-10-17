@@ -315,6 +315,7 @@ void HandleClient( void ) {
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             SerialClose(); // close the serial port
+            break;
         }
     }// end while
     /********************************************************************/
