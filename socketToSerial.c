@@ -119,14 +119,10 @@ void signal_handler(int sig) {
 
     switch(sig) {
         case SIGHUP:
-            syslog(LOG_WARNING, "Received SIGHUP signal.");
-            SerialClose();
-            socketIntf.Close(); // close connection to client
-            socketIntf.Close(); // close socket
-            exit(1);
-            break;
         case SIGTERM:
-            syslog(LOG_WARNING, "Received SIGTERM signal.");
+        case SIGINT:
+        case SIGQUIT:
+            syslog(LOG_WARNING, "Received SIGHUP signal.");
             SerialClose();
             socketIntf.Close(); // close connection to client
             socketIntf.Close(); // close socket
@@ -307,6 +303,7 @@ void HandleClient( void ) {
             // Send data over serial port
             SerialWriteNBytes(buffer, received);
 
+            usleep(100000);
             // Get response from serial
             received = SerialRead(buffer);
             // Push serial response back to client over the socket
@@ -315,6 +312,7 @@ void HandleClient( void ) {
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             SerialClose(); // close the serial port
+            break;
         }
     }// end while
     /********************************************************************/
