@@ -303,8 +303,12 @@ void HandleClient( void ) {
             // Send data over serial port
             SerialWriteNBytes(buffer, received);
 <<<<<<< HEAD
+<<<<<<< HEAD
 
             usleep(100000);
+=======
+            usleep(20000); // sleep 20ms to give device a change to respond
+>>>>>>> 105b2a3706c5c2bee5943c8c2d8d6af49b701f67
 =======
             usleep(20000); // sleep 20ms to give device a change to respond
 >>>>>>> 105b2a3706c5c2bee5943c8c2d8d6af49b701f67
