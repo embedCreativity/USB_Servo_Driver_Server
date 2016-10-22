@@ -302,8 +302,12 @@ void HandleClient( void ) {
             printf("-->%s\n", buffer);
             // Send data over serial port
             SerialWriteNBytes(buffer, received);
+<<<<<<< HEAD
 
             usleep(100000);
+=======
+            usleep(20000); // sleep 20ms to give device a change to respond
+>>>>>>> 105b2a3706c5c2bee5943c8c2d8d6af49b701f67
             // Get response from serial
             received = SerialRead(buffer);
             // Push serial response back to client over the socket
