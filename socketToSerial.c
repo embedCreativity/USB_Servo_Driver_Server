@@ -279,8 +279,10 @@ int main(int argc, char *argv[])
 */
 void HandleClient( void ) {
 
-    uint8_t buffer[BUFFSIZE];
-    int     received;
+    uint8_t serialTx[BUFFSIZE];
+    uint8_t serialRx[BUFFSIZE];
+    int     cntSerialTx;
+    int     cntSerialRx;
 
     #if defined(WEBCAM)
     //Start webcam thread
@@ -297,18 +299,22 @@ void HandleClient( void ) {
     /**************** Main TCP linked section **************************/
     while(fTrue) {
 
-        received = socketIntf.Read(buffer, BUFFSIZE);
-        if ( received > 0 ) {
-            printf("-->%s\n", buffer);
+        cntSerialTx = socketIntf.Read(serialTx, BUFFSIZE);
+        serialTx[cntSerialTx] = 0; // null terminate
+        if ( cntSerialTx > 0 ) {
             // Send data over serial port
-            SerialWriteNBytes(buffer, received);
+            SerialWriteNBytes(serialTx, cntSerialTx);
+            printf("socket rx/tx serial-->%s\n", serialTx);
 
             usleep(100000);
 
             // Get response from serial
-            received = SerialRead(buffer);
+            cntSerialRx = SerialRead(serialRx);
+            serialRx[cntSerialRx] = 0; // null terminate
+
             // Push serial response back to client over the socket
-            received = socketIntf.Write(buffer, received);
+            socketIntf.Write(serialRx, cntSerialRx);
+            printf("serial rx/socket tx-->%s\n", serialRx);
         } else {
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now

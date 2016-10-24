@@ -86,14 +86,14 @@ int SerialWriteNBytes(uint8_t *rgbChars, int n) {
     int i;
 
     for(i = 0; i < n; i++) {
-        printf("SerialWriteNBytes(n=%d)\n", n);
+        //printf("SerialWriteNBytes(n=%d)\n", n);
         int n = write(fd, rgbChars, 1);
         if (n < 0) {
             printf("Write Error : %d,  %s\n", errno, strerror(errno));
             printf("0x%x ", *rgbChars);
             return 0;
         }
-        printf("0x%x ", *rgbChars);
+        //printf("0x%x ", *rgbChars);
         rgbChars++; //increment pointer
     }
     return 1;
