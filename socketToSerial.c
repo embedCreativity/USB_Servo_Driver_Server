@@ -298,7 +298,6 @@ void HandleClient( void ) {
 
     /**************** Main TCP linked section **************************/
     while(fTrue) {
-
         cntSerialTx = socketIntf.Read(serialTx, BUFFSIZE);
         serialTx[cntSerialTx] = 0; // null terminate
         if ( cntSerialTx > 0 ) {
@@ -306,7 +305,7 @@ void HandleClient( void ) {
             SerialWriteNBytes(serialTx, cntSerialTx);
             printf("socket rx/tx serial-->%s\n", serialTx);
 
-            usleep(100000);
+            usleep(1000);
 
             // Get response from serial
             cntSerialRx = SerialRead(serialRx);

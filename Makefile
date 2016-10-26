@@ -1,6 +1,6 @@
 ProgramName := socketToSerial
 
-LIBS += -lpthread -lSocket
+LIBS += -lSocket
 CFLAGS += -g -Wall -static
 LDFLAGS += -L.
 

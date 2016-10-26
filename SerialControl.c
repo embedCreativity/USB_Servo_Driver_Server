@@ -301,20 +301,23 @@ speed_t IntToBaud( int baudRate ) {
 bool SerialInit(char *szDevice, int baudRate) {
 
     struct termios options;
-    char rgchBuf[32];
+    memset (&options, 0, sizeof(options)); // clear whatever was in there before
 
-    strcpy(rgchBuf, szDevice);
     fd = open(szDevice, O_RDWR | O_NOCTTY | O_NDELAY);
 
     if (fd == -1) {
-        printf("Unable to open %s!", rgchBuf);
+        printf("Unable to open %s!", szDevice);
         return false;
     } else {
         fcntl(fd, F_SETFL, 0);
     }
 
     // Get the current options for the port...
-    tcgetattr(fd, &options);
+    if ( 0 != tcgetattr(fd, &options) ) {
+        printf("SerialInit Error - unable to get options!\n");
+        return false;
+    }
+
     // Set the baud rates
     cfsetispeed(&options, IntToBaud(baudRate));
     cfsetospeed(&options, IntToBaud(baudRate));
@@ -325,11 +328,22 @@ bool SerialInit(char *szDevice, int baudRate) {
     options.c_cflag &= ~CSTOPB; //1 stop bit
     options.c_cflag &= ~CSIZE; //ready value for character size
     options.c_cflag |= CS8; //8-bit character size
+    options.c_iflag &= ~IGNBRK; // disable break processing
+    options.c_lflag = 0; // no signalling chars, no echo, no canonical processing
+    options.c_oflag = 0; // no remapping, no delays
+    options.c_cc[VMIN] = 0; // read doesn't block
+    options.c_cc[VTIME] = 5; // 0.5 second read timeout
+    options.c_iflag &= ~(IXON | IXOFF | IXANY); // no xon/xoff ctrl
+    options.c_cflag &= ~CRTSCTS;
 
     // Set the new options for the port...
-    tcsetattr(fd, TCSANOW, &options); //change attributes NOW
+    if ( 0 != tcsetattr(fd, TCSANOW, &options) ) { //change attributes NOW
+        printf("SerialInit Error - unable to set options!\n");
+        return false;
+    }
 
-    return 1;
+
+    return true;
 }
 
 /* ------------------------------------------------------------ */
@@ -356,7 +370,7 @@ bool SerialInit(char *szDevice, int baudRate) {
 */
 void SerialClose(void) {
     if(0 > close(fd)) {
-        printf("\nError closing serial connection.\n");
+        printf("SerialClose: Error - %d,  %s\n", errno, strerror(errno));
     }
     else {
         printf("Serial connection closed.\n");
