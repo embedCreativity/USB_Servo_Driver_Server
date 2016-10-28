@@ -64,6 +64,27 @@
 
 #define DAEMON_NAME "serialServer"
 
+// From TivaPWM.h
+// 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
+#define SERVO_REFRESH_PERIOD        1600000
+// PERIOD = fractional second * 80M clocks per second
+// min = 750uS * 80M
+#define SERVO_MIN_PERIOD            60000
+// mid = 1.5ms * 80M
+#define SERVO_MID_PERIOD            120000
+// max = 2.25ms * 80M
+#define SERVO_MAX_PERIOD            180000
+
+// 20KHz (outside audible?)
+#define MOTOR_REFRESH_PERIOD        4000
+//#define MOTOR_REFRESH_PERIOD        8000
+
+// 50Hz flicker
+#define EXTLED_REFRESH_PERIOD       1600000
+
+
+
+
 /* ------------------------------------------------------------ */
 /*              Global Variables                                */
 /* ------------------------------------------------------------ */
@@ -88,6 +109,7 @@ extern SocketInterface_T socketIntf;
 
 void    Die(char *mess) { perror(mess); exit(1); }
 void    *Webcam(void *threadid);
+void    *BoardComms(void *threadid);
 void    HandleClient( void );
 
 /* ------------------------------------------------------------ */
@@ -291,6 +313,12 @@ void HandleClient( void ) {
     } //end if
     #endif
 
+    /**************************************
+    Start BoardComm thread TODO
+    pthread_create(&threadBoardComms, NULL, BoardComms, (void *)lBoardThreadID)) {
+        printf("ERROR: pthread_create(&threadBoardComms...\n");
+    }
+    **************************************/
     // Bring up the serial port
     if ( ! SerialInit(serialPort, baudRate) ) {
         Die("Failed to open serial port");
@@ -301,6 +329,8 @@ void HandleClient( void ) {
         cntSerialTx = socketIntf.Read(serialTx, BUFFSIZE);
         serialTx[cntSerialTx] = 0; // null terminate
         if ( cntSerialTx > 0 ) {
+
+    k
             // Send data over serial port
             SerialWriteNBytes(serialTx, cntSerialTx);
             printf("socket rx/tx serial-->%s\n", serialTx);
@@ -323,6 +353,86 @@ void HandleClient( void ) {
     }// end while
     /********************************************************************/
 } //end HandleClient()
+
+
+void *BoardComms(void *threadid) {
+{
+
+/***********************88
+This code should run in a loop as long as a client is connected over socket.
+ Client connects
+ this loop runs and pulls data from a global struct
+ client disconnects
+ this loop exits
+**************************/
+
+
+/*********************** Begin copied code ***********************/
+#define POS_TLV_TYPE  0
+#define POS_TLV_LENGTH  1
+#define POS_TLV_BEGIN_DATA 2
+#define TLV_OVERHEAD 3
+
+// All position definitions start at 2.  0 is type, 1 is length, 2 is start of values thereafter.  Checksum is last
+// Position of checksum is always (LENGTH_* + 2)
+
+/****** OUTGOING DATA - FROM DEVICE TO PC ******/
+//   Local UPDATE position data
+//     There are 13 PWM values that need to be updated, each being 24-bits#define TYPE_LOC_UPDATE     0xAA
+#define LENGTH_LOC_UPDATE   39
+#define POS_EN_A            2
+#define POS_EN_B            5
+#define POS_EN_C            8
+#define POS_EN_D            11
+#define POS_CHAN1           14
+#define POS_CHAN2           17
+#define POS_CHAN3           20
+#define POS_CHAN4           23
+#define POS_CHAN5           25
+#define POS_CHAN6           28
+#define POS_CHAN7           31
+#define POS_CHAN8           34
+#define POS_EXT_LED         37
+
+// Update position data Ack
+#define TYPE_UPDATE_ACK      0xBB
+#define LENGTH_UPDATE_ACK    0
+
+        case TYPE_LOC_UPDATE:
+            /*
+
+            If code is compiled like this:
+                uint32_t number;
+                uint8_t *ptr;
+                uint8_t i;
+
+                number = 0x12345678;
+                ptr = (uint8_t*)(&number);
+
+                for ( i = 0; i < 4; i++ ) {
+                    printf("number[%d]: 0x%x\n", i, *ptr);
+                    ptr++;
+                }
+
+            The result will be this:
+                number[0]: 0x78
+                number[1]: 0x56
+                number[2]: 0x34
+                number[3]: 0x12
+
+            Thus, the pointer comes from MSB downto LSB as it increments in memory
+             */
+            // MOTOR A - wide timer
+            value = (uint32_t)((command[POS_EN_A] << 16)|(command[POS_EN_A + 1] << 8)|(command[POS_EN_A + 2]));
+            TimerMatchSet(SERVO_8_MOTOR_A_TIMER_BASE, MOTOR_A_TIMER, value);
+
+/************************ END COPIED CODE *******************/
+
+
+
+
+
+}
 
 #ifdef WEBCAM
 /* ------------------------------------------------------------ */
