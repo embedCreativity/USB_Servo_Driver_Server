@@ -40,6 +40,7 @@
 #include <string.h>
 #include <assert.h>
 #include <signal.h>
+#include <stdbool.h>
 #include "../Socket/Socket.h"
 
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
@@ -82,20 +83,26 @@
 // 50Hz flicker
 #define EXTLED_REFRESH_PERIOD       1600000
 
+#define SERIAL_SLEEP_PERIOD         100000
+#define RESPONSE_LENGTH             2 // TODO: fix
 
-
+uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
 
 /* ------------------------------------------------------------ */
 /*              Global Variables                                */
 /* ------------------------------------------------------------ */
 
-long    lThreadID;
-pthread_t threadWebcam; //handle to the thread
+long lThreadID;
+long lBoardThreadID;
+
+// handles to the threads
+pthread_t threadWebcam;
+pthread_t threadBoardComms;
 
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
 int baudRate;
-
+bool running;
 extern SocketInterface_T socketIntf;
 
 /* ------------------------------------------------------------ */
@@ -144,6 +151,8 @@ void signal_handler(int sig) {
         case SIGTERM:
         case SIGINT:
         case SIGQUIT:
+            // Notify thread that we're closing
+            running = false;
             syslog(LOG_WARNING, "Received SIGHUP signal.");
             SerialClose();
             socketIntf.Close(); // close connection to client
@@ -181,7 +190,6 @@ int main(int argc, char *argv[])
         fprintf(stderr, "USAGE: %s <path to serial port> <baud Rate> <socket port number>\n", argv[0]);
         exit(1);
     }
-
     strncpy(serialPort, (char*)argv[1], LEN_SERIAL_PORT);
     baudRate = atoi(argv[2]);
     portNum = atoi(argv[3]);
@@ -191,6 +199,11 @@ int main(int argc, char *argv[])
 #else
     int daemonize = 1;
 #endif
+
+    // init globals
+    running = false;
+    tlvLocUpdate[POS_TLV_TYPE] = TYPE_LOC_UPDATE;
+    tlvLocUpdate[POS_TLV_LENGTH] = LENGTH_LOC_UPDATE;
 
     // Setup signal handling
     signal(SIGHUP, signal_handler);
@@ -299,47 +312,29 @@ int main(int argc, char *argv[])
 **      Directs control of application based on TCP traffic content.
 **
 */
-void HandleClient( void ) {
-
-    uint8_t serialTx[BUFFSIZE];
-    uint8_t serialRx[BUFFSIZE];
-    int     cntSerialTx;
-    int     cntSerialRx;
-
+void HandleClient( void )
+{
     #if defined(WEBCAM)
-    //Start webcam thread
+    // Start webcam thread
     if (pthread_create(&threadWebcam, NULL, Webcam, (void *)lThreadID)) {
         printf("ERROR;  pthread_create(&threadWebcam... \n");
-    } //end if
+    } // end if
     #endif
 
-    /**************************************
-    Start BoardComm thread TODO
-    pthread_create(&threadBoardComms, NULL, BoardComms, (void *)lBoardThreadID)) {
+    /****************************************/
+    /* Start BoardComm thread               */
+    pthread_create(&threadBoardComms, NULL, BoardComms, (void *)lBoardThreadID) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
     }
-    **************************************/
-    // Bring up the serial port
-    if ( ! SerialInit(serialPort, baudRate) ) {
-        Die("Failed to open serial port");
-    }
+    /****************************************/
 
     /**************** Main TCP linked section **************************/
     while(fTrue) {
-        cntSerialTx = socketIntf.Read(serialTx, BUFFSIZE);
+        cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
         serialTx[cntSerialTx] = 0; // null terminate
         if ( cntSerialTx > 0 ) {
 
-    k
-            // Send data over serial port
-            SerialWriteNBytes(serialTx, cntSerialTx);
-            printf("socket rx/tx serial-->%s\n", serialTx);
-
-            usleep(1000);
-
-            // Get response from serial
-            cntSerialRx = SerialRead(serialRx);
-            serialRx[cntSerialRx] = 0; // null terminate
+            //response[]//;
 
             // Push serial response back to client over the socket
             socketIntf.Write(serialRx, cntSerialRx);
@@ -357,46 +352,62 @@ void HandleClient( void ) {
 
 void *BoardComms(void *threadid) {
 {
+    uint8_t serialRx[BUFFSIZE];
+    int     cntSerialRx;
+    uint8_t response[RESPONSE_LENGTH];
 
-/***********************88
-This code should run in a loop as long as a client is connected over socket.
+
+/*************************
+ This code should run in a loop as long as a client is connected over socket.
  Client connects
  this loop runs and pulls data from a global struct
  client disconnects
  this loop exits
 **************************/
 
+    // Bring up the serial port
+    if ( ! SerialInit(serialPort, baudRate) ) {
+        Die("Failed to open serial port");
+    }
+
+    response[POS_TLV_TYPE] = TYPE_UPDATE_ACK;
+    response[POS_TLV_LENGTH] = LENGTH_UPDATE_ACK;
+    //--> put response[POS_TLV_BEGIN_DATA] = stuff
+
+
+// Send data over serial port
+SerialWriteNBytes(serialTx, cntSerialTx);
+printf("socket rx/tx serial-->%s\n", serialTx);
+
+usleep(1000);
+
+// Get response from serial
+cntSerialRx = SerialRead(serialRx);
+serialRx[cntSerialRx] = 0; // null terminate
+
+    while (running) {
+        tlvLocUpdate[LENGTH_LOC_UPDATE];
+
+        SerialWriteNBytes(tlvLocUpdate, LENGTH_LOC_UPDATE);
+        printf("socket rx/tx serial-->%s\n", serialTx);
+
+    uint8_t serialTx[BUFFSIZE];
+        usleep(1000);
+
+        // Get response from serial
+        cntSerialRx = SerialRead(serialRx);
+        serialRx[cntSerialRx] = 0; // null terminate
+
+        usleep(SERIAL_SLEEP_PERIOD);
+    }
 
 /*********************** Begin copied code ***********************/
-#define POS_TLV_TYPE  0
-#define POS_TLV_LENGTH  1
-#define POS_TLV_BEGIN_DATA 2
-#define TLV_OVERHEAD 3
-
 // All position definitions start at 2.  0 is type, 1 is length, 2 is start of values thereafter.  Checksum is last
 // Position of checksum is always (LENGTH_* + 2)
 
 /****** OUTGOING DATA - FROM DEVICE TO PC ******/
 //   Local UPDATE position data
 //     There are 13 PWM values that need to be updated, each being 24-bits#define TYPE_LOC_UPDATE     0xAA
-#define LENGTH_LOC_UPDATE   39
-#define POS_EN_A            2
-#define POS_EN_B            5
-#define POS_EN_C            8
-#define POS_EN_D            11
-#define POS_CHAN1           14
-#define POS_CHAN2           17
-#define POS_CHAN3           20
-#define POS_CHAN4           23
-#define POS_CHAN5           25
-#define POS_CHAN6           28
-#define POS_CHAN7           31
-#define POS_CHAN8           34
-#define POS_EXT_LED         37
-
-// Update position data Ack
-#define TYPE_UPDATE_ACK      0xBB
-#define LENGTH_UPDATE_ACK    0
 
         case TYPE_LOC_UPDATE:
             /*
