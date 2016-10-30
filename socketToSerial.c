@@ -83,10 +83,17 @@
 // 50Hz flicker
 #define EXTLED_REFRESH_PERIOD       1600000
 
+// Delay between writes             100ms
 #define SERIAL_SLEEP_PERIOD         100000
+
+// Delay between writing to serial port and subsequently calling read
+#define SERIAL_READ_DELAY           1000
+
 #define RESPONSE_LENGTH             2 // TODO: fix
 
+// This is what we send the board
 uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
+uint8_t response[RESPONSE_LENGTH];
 
 /* ------------------------------------------------------------ */
 /*              Global Variables                                */
@@ -118,6 +125,7 @@ void    Die(char *mess) { perror(mess); exit(1); }
 void    *Webcam(void *threadid);
 void    *BoardComms(void *threadid);
 void    HandleClient( void );
+void    InterpretSocketCommand(uint8_t *data, uint32_t length);
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -152,9 +160,15 @@ void signal_handler(int sig) {
         case SIGINT:
         case SIGQUIT:
             // Notify thread that we're closing
-            running = false;
+            if ( running ) {
+                running = false;
+                // Wait for threads to return
+            #if defined(WEBCAM)
+                pthread_join(threadWebcam, NULL);
+            #endif
+                pthread_join(threadBoardComms, NULL);
+            }
             syslog(LOG_WARNING, "Received SIGHUP signal.");
-            SerialClose();
             socketIntf.Close(); // close connection to client
             socketIntf.Close(); // close socket
             exit(1);
@@ -314,6 +328,9 @@ int main(int argc, char *argv[])
 */
 void HandleClient( void )
 {
+    uint8_t socketRx[BUFFSIZE];
+    uint32_t cntSocketRx;
+
     #if defined(WEBCAM)
     // Start webcam thread
     if (pthread_create(&threadWebcam, NULL, Webcam, (void *)lThreadID)) {
@@ -331,18 +348,14 @@ void HandleClient( void )
     /**************** Main TCP linked section **************************/
     while(fTrue) {
         cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
-        serialTx[cntSerialTx] = 0; // null terminate
-        if ( cntSerialTx > 0 ) {
-
-            //response[]//;
+        if ( cntSocketRx> 0 ) {
+            InterpretSocketCommand(socketRx, cntSocketRx);
 
             // Push serial response back to client over the socket
-            socketIntf.Write(serialRx, cntSerialRx);
-            printf("serial rx/socket tx-->%s\n", serialRx);
+            socketIntf.Write(tlvUpdateAck, LENGTH_UPDATE_ACK);
         } else {
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
-            SerialClose(); // close the serial port
             break;
         }
     }// end while
@@ -354,8 +367,6 @@ void *BoardComms(void *threadid) {
 {
     uint8_t serialRx[BUFFSIZE];
     int     cntSerialRx;
-    uint8_t response[RESPONSE_LENGTH];
-
 
 /*************************
  This code should run in a loop as long as a client is connected over socket.
@@ -370,37 +381,41 @@ void *BoardComms(void *threadid) {
         Die("Failed to open serial port");
     }
 
-    response[POS_TLV_TYPE] = TYPE_UPDATE_ACK;
-    response[POS_TLV_LENGTH] = LENGTH_UPDATE_ACK;
-    //--> put response[POS_TLV_BEGIN_DATA] = stuff
-
-
-// Send data over serial port
-SerialWriteNBytes(serialTx, cntSerialTx);
-printf("socket rx/tx serial-->%s\n", serialTx);
-
-usleep(1000);
-
-// Get response from serial
-cntSerialRx = SerialRead(serialRx);
-serialRx[cntSerialRx] = 0; // null terminate
-
     while (running) {
-        tlvLocUpdate[LENGTH_LOC_UPDATE];
-
+        // Send the board the data that we've been updating with interpretted socket data
         SerialWriteNBytes(tlvLocUpdate, LENGTH_LOC_UPDATE);
-        printf("socket rx/tx serial-->%s\n", serialTx);
 
-    uint8_t serialTx[BUFFSIZE];
-        usleep(1000);
+        // Give board a moment to respond
+        usleep(SERIAL_READ_DELAY);
 
-        // Get response from serial
+        // Get response from serial ( should be ADC battery voltage reading )
         cntSerialRx = SerialRead(serialRx);
-        serialRx[cntSerialRx] = 0; // null terminate
+
+        // Interpret TLV contents and reformat for socket client
+
+        // Pack our response message into the buffer used by HandleClient()
+        //response[RESPONSE_LENGTH];
 
         usleep(SERIAL_SLEEP_PERIOD);
     }
 
+    SerialClose();
+
+
+
+
+
+
+}
+
+void InterpretSocketCommand(uint8_t *data, uint32_t length)
+{
+
+
+    // MSB first to LSB as we increment pointer in buffer. 24-bits each value
+    tlvLocUpdate[POS_EN_A] = foo;
+
+#ifdef DEAD
 /*********************** Begin copied code ***********************/
 // All position definitions start at 2.  0 is type, 1 is length, 2 is start of values thereafter.  Checksum is last
 // Position of checksum is always (LENGTH_* + 2)
@@ -438,12 +453,10 @@ serialRx[cntSerialRx] = 0; // null terminate
             TimerMatchSet(SERVO_8_MOTOR_A_TIMER_BASE, MOTOR_A_TIMER, value);
 
 /************************ END COPIED CODE *******************/
-
-
-
-
+#endif
 
 }
+
 
 #ifdef WEBCAM
 /* ------------------------------------------------------------ */
