@@ -1,7 +1,7 @@
 ProgramName := socketToSerial
 
-LIBS += -lSocket
-CFLAGS += -g -Wall -static
+LIBS += -lSocket -lpthread
+CFLAGS += -g -Wall
 LDFLAGS += -L.
 
 socketToSerial: socketToSerial.o SerialControl.o

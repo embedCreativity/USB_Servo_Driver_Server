@@ -91,16 +91,15 @@
 
 #define RESPONSE_LENGTH             2 // TODO: fix
 
+//--- TODO: protect all instances with pthread mutexes
 // This is what we send the board
 uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
+// This is what we send the client
 uint8_t response[RESPONSE_LENGTH];
 
 /* ------------------------------------------------------------ */
 /*              Global Variables                                */
 /* ------------------------------------------------------------ */
-
-long lThreadID;
-long lBoardThreadID;
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -121,11 +120,15 @@ extern SocketInterface_T socketIntf;
 /*              Forward Declarations                            */
 /* ------------------------------------------------------------ */
 
-void    Die(char *mess) { perror(mess); exit(1); }
-void    *Webcam(void *threadid);
-void    *BoardComms(void *threadid);
+void*   Webcam(void *arg);
+void*    BoardComms(void *arg);
 void    HandleClient( void );
 void    InterpretSocketCommand(uint8_t *data, uint32_t length);
+
+void InterpretSocketCommand(uint8_t *data, uint32_t length)
+{
+    return;
+}
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -303,8 +306,7 @@ int main(int argc, char *argv[])
 
     /* Prepare to exit the daemon process.  Free any resources before exit. */
     syslog(LOG_INFO, "%s daemon exiting", DAEMON_NAME);
-    exit(0);
-
+    return 0;
 } //end main()
 
 /* ------------------------------------------------------------ */
@@ -333,14 +335,14 @@ void HandleClient( void )
 
     #if defined(WEBCAM)
     // Start webcam thread
-    if (pthread_create(&threadWebcam, NULL, Webcam, (void *)lThreadID)) {
+    if (pthread_create(&threadWebcam, NULL, &Webcam, NULL)) {
         printf("ERROR;  pthread_create(&threadWebcam... \n");
     } // end if
     #endif
 
     /****************************************/
     /* Start BoardComm thread               */
-    pthread_create(&threadBoardComms, NULL, BoardComms, (void *)lBoardThreadID) {
+    if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
     }
     /****************************************/
@@ -352,7 +354,7 @@ void HandleClient( void )
             InterpretSocketCommand(socketRx, cntSocketRx);
 
             // Push serial response back to client over the socket
-            socketIntf.Write(tlvUpdateAck, LENGTH_UPDATE_ACK);
+            socketIntf.Write(response, RESPONSE_LENGTH);
         } else {
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
@@ -362,23 +364,27 @@ void HandleClient( void )
     /********************************************************************/
 } //end HandleClient()
 
-
-void *BoardComms(void *threadid) {
+void* BoardComms(void *arg)
 {
     uint8_t serialRx[BUFFSIZE];
     int     cntSerialRx;
 
-/*************************
- This code should run in a loop as long as a client is connected over socket.
- Client connects
- this loop runs and pulls data from a global struct
- client disconnects
- this loop exits
-**************************/
+    /*************************
+     This code should run in a loop as long as a client is connected over socket.
+     Client connects
+     this loop runs and pulls data from a global struct
+     client disconnects
+     this loop exits
+    **************************/
 
     // Bring up the serial port
     if ( ! SerialInit(serialPort, baudRate) ) {
-        Die("Failed to open serial port");
+#if defined(DEBUG)
+        fprintf(stdout, "ERROR: Couldn't open %s.\n", serialPort);
+#else
+        syslog(LOG_PERROR, "ERROR: Couldn't open %s.\n", serialPort);
+#endif
+        return NULL;
     }
 
     while (running) {
@@ -390,6 +396,7 @@ void *BoardComms(void *threadid) {
 
         // Get response from serial ( should be ADC battery voltage reading )
         cntSerialRx = SerialRead(serialRx);
+        cntSerialRx +=1; // Silence warning
 
         // Interpret TLV contents and reformat for socket client
 
@@ -400,20 +407,16 @@ void *BoardComms(void *threadid) {
     }
 
     SerialClose();
-
-
-
-
-
-
+    return NULL;
 }
 
-void InterpretSocketCommand(uint8_t *data, uint32_t length)
+/*void InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
-
-
+    return;
+}*/
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
-    tlvLocUpdate[POS_EN_A] = foo;
+    //tlvLocUpdate[POS_EN_A] = foo;
+
 
 #ifdef DEAD
 /*********************** Begin copied code ***********************/
@@ -455,8 +458,6 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
 /************************ END COPIED CODE *******************/
 #endif
 
-}
-
 
 #ifdef WEBCAM
 /* ------------------------------------------------------------ */
@@ -477,7 +478,7 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
 **  Description:
 **
 */
-void *Webcam(void *threadid) {
+void* Webcam(void *arg) {
 
 #if defined(DEBUG)
     fprintf(stdout, "Webcam broadcasting.\n");
@@ -487,6 +488,7 @@ void *Webcam(void *threadid) {
 
     //start webcam broadcasting
     system("mjpg_streamer -i \"/usr/lib/input_uvc.so -d /dev/video1\" -o \"/usr/lib/output_http.so\"");
+    return NULL;
 } //end Webcam
 /****************************************************************************/
 #endif
