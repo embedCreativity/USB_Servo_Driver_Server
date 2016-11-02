@@ -121,14 +121,9 @@ extern SocketInterface_T socketIntf;
 /* ------------------------------------------------------------ */
 
 void*   Webcam(void *arg);
-void*    BoardComms(void *arg);
+void*   BoardComms(void *arg);
 void    HandleClient( void );
 void    InterpretSocketCommand(uint8_t *data, uint32_t length);
-
-void InterpretSocketCommand(uint8_t *data, uint32_t length)
-{
-    return;
-}
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -410,10 +405,9 @@ void* BoardComms(void *arg)
     return NULL;
 }
 
-/*void InterpretSocketCommand(uint8_t *data, uint32_t length)
+void InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
-    return;
-}*/
+
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
 
@@ -457,7 +451,7 @@ void* BoardComms(void *arg)
 
 /************************ END COPIED CODE *******************/
 #endif
-
+}
 
 #ifdef WEBCAM
 /* ------------------------------------------------------------ */
