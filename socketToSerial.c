@@ -47,49 +47,15 @@
 
 //seperate thread that handles incoming serial communications
 #include "SerialControl.h" /* my Serial comm functions */
-#include "TLV_definitions.h"
-
+#include "socketToSerial.h"
 
 /* ------------------------------------------------------------ */
 /*              Local Type Definitions                          */
 /* ------------------------------------------------------------ */
 
-//boolean definitions
-#define fFalse          0
-#define fTrue           !fFalse
-
-#define MAXPENDING      1    /* Max connection requests */
-#define BUFFSIZE        1500
-
-#define LEN_SERIAL_PORT 32
-
-#define DAEMON_NAME "serialServer"
-
-// From TivaPWM.h
-// 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
-#define SERVO_REFRESH_PERIOD        1600000
-// PERIOD = fractional second * 80M clocks per second
-// min = 750uS * 80M
-#define SERVO_MIN_PERIOD            60000
-// mid = 1.5ms * 80M
-#define SERVO_MID_PERIOD            120000
-// max = 2.25ms * 80M
-#define SERVO_MAX_PERIOD            180000
-
-// 20KHz (outside audible?)
-#define MOTOR_REFRESH_PERIOD        4000
-//#define MOTOR_REFRESH_PERIOD        8000
-
-// 50Hz flicker
-#define EXTLED_REFRESH_PERIOD       1600000
-
-// Delay between writes             100ms
-#define SERIAL_SLEEP_PERIOD         100000
-
-// Delay between writing to serial port and subsequently calling read
-#define SERIAL_READ_DELAY           1000
-
-#define RESPONSE_LENGTH             2 // TODO: fix
+/* ------------------------------------------------------------ */
+/*              Global Variables                                */
+/* ------------------------------------------------------------ */
 
 //--- TODO: protect all instances with pthread mutexes
 // This is what we send the board
@@ -97,9 +63,26 @@ uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
 // This is what we send the client
 uint8_t response[RESPONSE_LENGTH];
 
-/* ------------------------------------------------------------ */
-/*              Global Variables                                */
-/* ------------------------------------------------------------ */
+uint8_t tlvLocUpdateDefaults[] = {
+    TYPE_LOC_UPDATE,
+    LENGTH_LOC_UPDATE,
+    (0xFF & (DFLT_MOTOR >> 16), // Motor A - MSB first
+    (0xFF & (DFLT_MOTOR >> 8),  // Motor A
+    (0xFF & (DFLT_MOTOR),       // Motor A - LSB
+    (0xFF & (DFLT_MOTOR >> 16), // Motor B - MSB first
+    (0xFF & (DFLT_MOTOR >> 8),  // Motor B
+    (0xFF & (DFLT_MOTOR),       // Motor B - LSB
+    (0xFF & (DFLT_MOTOR >> 16), // Motor C - MSB first
+    (0xFF & (DFLT_MOTOR >> 8),  // Motor C
+    (0xFF & (DFLT_MOTOR),       // Motor C - LSB
+    (0xFF & (DFLT_MOTOR >> 16), // Motor D - MSB first
+    (0xFF & (DFLT_MOTOR >> 8),  // Motor D
+    (0xFF & (DFLT_MOTOR),       // Motor D - LSB
+    (0xFF & (DFLT_MOTOR >> 16), // Servo Channel 1 - MSB
+    (0xFF & (DFLT_MOTOR >> 8),  // Servo Channel 1
+    (0xFF & (DFLT_MOTOR),       // Servo Channel 1 - LSB
+
+}
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -351,6 +334,8 @@ void HandleClient( void )
             // Push serial response back to client over the socket
             socketIntf.Write(response, RESPONSE_LENGTH);
         } else {
+            // restore defaults
+            memcpy(tlvLocUpdate, tlvLocUpdateDefaults, LENGTH_LOC_UPDATE);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             break;
@@ -410,6 +395,8 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
 
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
+
+
 
 
 #ifdef DEAD
