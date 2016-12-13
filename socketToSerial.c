@@ -396,7 +396,13 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
 
-
+    // start string parsing from here:
+    // candidate command strings:
+    //  Go, stop, back, pivot right, pivot left, turn right, turn left
+    //  set servo[1,2,3,4,5,6,7,8] ####
+    //  set motor[A,B,C,D] ####
+    // It'd be cool to chain these together so they arrive all at the same time
+    //  set motorA 500; set motorB 500;
 
 
 #ifdef DEAD
