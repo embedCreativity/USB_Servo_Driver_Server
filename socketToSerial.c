@@ -64,25 +64,48 @@ uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
 uint8_t response[RESPONSE_LENGTH];
 
 uint8_t tlvLocUpdateDefaults[] = {
-    TYPE_LOC_UPDATE,
-    LENGTH_LOC_UPDATE,
-    (0xFF & (DFLT_MOTOR >> 16), // Motor A - MSB first
-    (0xFF & (DFLT_MOTOR >> 8),  // Motor A
-    (0xFF & (DFLT_MOTOR),       // Motor A - LSB
-    (0xFF & (DFLT_MOTOR >> 16), // Motor B - MSB first
-    (0xFF & (DFLT_MOTOR >> 8),  // Motor B
-    (0xFF & (DFLT_MOTOR),       // Motor B - LSB
-    (0xFF & (DFLT_MOTOR >> 16), // Motor C - MSB first
-    (0xFF & (DFLT_MOTOR >> 8),  // Motor C
-    (0xFF & (DFLT_MOTOR),       // Motor C - LSB
-    (0xFF & (DFLT_MOTOR >> 16), // Motor D - MSB first
-    (0xFF & (DFLT_MOTOR >> 8),  // Motor D
-    (0xFF & (DFLT_MOTOR),       // Motor D - LSB
-    (0xFF & (DFLT_MOTOR >> 16), // Servo Channel 1 - MSB
-    (0xFF & (DFLT_MOTOR >> 8),  // Servo Channel 1
-    (0xFF & (DFLT_MOTOR),       // Servo Channel 1 - LSB
-
-}
+    TYPE_LOC_UPDATE,            // Pos: 0
+    LENGTH_LOC_UPDATE,          // Pos: 1 ...
+    (0xFF & (DFLT_MOTOR >> 16)), // Motor A - MSB first
+    (0xFF & (DFLT_MOTOR >> 8)),  // Motor A
+    (0xFF & (DFLT_MOTOR)),       // Motor A - LSB
+    (0xFF & (DFLT_MOTOR >> 16)), // Motor B - MSB first
+    (0xFF & (DFLT_MOTOR >> 8)),  // Motor B
+    (0xFF & (DFLT_MOTOR)),       // Motor B - LSB
+    (0xFF & (DFLT_MOTOR >> 16)), // Motor C - MSB first
+    (0xFF & (DFLT_MOTOR >> 8)),  // Motor C
+    (0xFF & (DFLT_MOTOR)),       // Motor C - LSB
+    (0xFF & (DFLT_MOTOR >> 16)), // Motor D - MSB first
+    (0xFF & (DFLT_MOTOR >> 8)),  // Motor D
+    (0xFF & (DFLT_MOTOR)),       // Motor D - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 1 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 1
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 1 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 2 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 2
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 2 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 3 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 3
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 3 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 4 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 4
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 4 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 5 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 5
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 5 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 6 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 6
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 6 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 7 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 7
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 7 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 8 - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 8
+    (0xFF & (DFLT_SERVO)),       // Servo Channel 8 - LSB
+    (0xFF & (DFLT_SERVO>> 16)),  // EXT LED - MSB
+    (0xFF & (DFLT_SERVO >> 8)),  // EXT_LED
+    (0xFF & (DFLT_SERVO))       // EXT LED - LSB
+};
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -310,6 +333,7 @@ void HandleClient( void )
 {
     uint8_t socketRx[BUFFSIZE];
     uint32_t cntSocketRx;
+    uint8_t checksum;
 
     #if defined(WEBCAM)
     // Start webcam thread
@@ -320,6 +344,9 @@ void HandleClient( void )
 
     /****************************************/
     /* Start BoardComm thread               */
+    memcpy(tlvLocUpdate, tlvLocUpdateDefaults, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
+    checksum = ComputeChecksum(tlvLocUpdate, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1)
+    tlvLocUpdate[LENGTH_LOC_UPDATE + TLV_OVERHEAD] = checksum;
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
     }
@@ -335,7 +362,8 @@ void HandleClient( void )
             socketIntf.Write(response, RESPONSE_LENGTH);
         } else {
             // restore defaults
-            memcpy(tlvLocUpdate, tlvLocUpdateDefaults, LENGTH_LOC_UPDATE);
+            memcpy(tlvLocUpdate, tlvLocUpdateDefaults,
+              LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             break;
@@ -368,7 +396,7 @@ void* BoardComms(void *arg)
     }
 
     while (running) {
-        // Send the board the data that we've been updating with interpretted socket data
+        // Send the board the data that we've been updating with interpreted socket data
         SerialWriteNBytes(tlvLocUpdate, LENGTH_LOC_UPDATE);
 
         // Give board a moment to respond
@@ -477,6 +505,20 @@ void* Webcam(void *arg) {
     system("mjpg_streamer -i \"/usr/lib/input_uvc.so -d /dev/video1\" -o \"/usr/lib/output_http.so\"");
     return NULL;
 } //end Webcam
+
+static uint8_t ComputeChecksum(uint8_t *input, uint32_t length)
+{
+    int i;
+    uint8_t checksum;
+    checksum = 0;
+
+    for ( i = 0; i < length; i++ ) {
+        checksum = checksum ^ input[i];
+    }
+
+    return checksum;
+}
+
 /****************************************************************************/
 #endif
 

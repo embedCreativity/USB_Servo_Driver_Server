@@ -95,13 +95,12 @@
 #define LENGTH_UPDATE_ACK    0
 
 // Default tlv values
-#define DFLT_MOTOR          MOTOR_REFRESH_PERIOD-1
+#define DFLT_MOTOR          (MOTOR_REFRESH_PERIOD-1)
 #define DFLT_SERVO          (SERVO_REFRESH_PERIOD - SERVO_MID_PERIOD)
 #define DFLT_EXT_LED    1
 
-
-
-
+// prototypes
+static uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
 
 #endif
 
