@@ -26,6 +26,8 @@
 #define VERBOSE
 //#define WEBCAM
 
+#define _GNU_SOURCE
+
 /* ------------------------------------------------------------ */
 /*              Include File Definitions                        */
 /* ------------------------------------------------------------ */
@@ -107,9 +109,32 @@ uint8_t tlvLocUpdateDefaults[] = {
     (0xFF & (DFLT_SERVO))       // EXT LED - LSB
 };
 
+typedef struct _tlvLocUpdateDefaults_T {
+    uint8_t type;
+    uint8_t length;
+    uint8_t motorA[3];
+    uint8_t motorB[3];
+    uint8_t motorC[3];
+    uint8_t motorD[3];
+    uint8_t servo1[3];
+    uint8_t servo2[3];
+    uint8_t servo3[3];
+    uint8_t servo4[3];
+    uint8_t servo5[3];
+    uint8_t servo6[3];
+    uint8_t servo7[3];
+    uint8_t servo8[3];
+    uint8_t extLed[3];
+} __attribute__ ((__packed__)) tlvLocUpdateDefaults_T;
+
+tlvLocUpdateDefaults_T locUpdates;
+
 // handles to the threads
 pthread_t threadWebcam;
 pthread_t threadBoardComms;
+
+// mutex to protect serial port payload
+pthread_mutex_t lockSerial;
 
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
@@ -126,10 +151,6 @@ extern SocketInterface_T socketIntf;
 /*              Forward Declarations                            */
 /* ------------------------------------------------------------ */
 
-void*   Webcam(void *arg);
-void*   BoardComms(void *arg);
-void    HandleClient( void );
-void    InterpretSocketCommand(uint8_t *data, uint32_t length);
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -172,6 +193,10 @@ void signal_handler(int sig) {
             #endif
                 pthread_join(threadBoardComms, NULL);
             }
+
+            // clean up our mutex
+            pthread_mutex_destroy(&lockSerial);
+
             syslog(LOG_WARNING, "Received SIGHUP signal.");
             socketIntf.Close(); // close connection to client
             socketIntf.Close(); // close socket
@@ -181,6 +206,19 @@ void signal_handler(int sig) {
             syslog(LOG_WARNING, "Unhandled signal (%d) %s", sig, strsignal(sig));
             break;
     }
+}
+
+uint8_t ComputeChecksum(uint8_t *input, uint32_t length)
+{
+    int i;
+    uint8_t checksum;
+    checksum = 0;
+
+    for ( i = 0; i < length; i++ ) {
+        checksum = checksum ^ input[i];
+    }
+
+    return checksum;
 }
 
 /* ------------------------------------------------------------ */
@@ -228,6 +266,12 @@ int main(int argc, char *argv[])
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
     signal(SIGQUIT, signal_handler);
+
+    // setup mutexes
+    if ( 0 != pthread_mutex_init(&lockSerial, NULL) ) {
+        syslog(LOG_PERROR, "ERROR: Failed to init mutex.\n");
+        exit(EXIT_FAILURE);
+    }
 
     syslog(LOG_INFO, "%s daemon starting up", DAEMON_NAME);
 
@@ -344,9 +388,11 @@ void HandleClient( void )
 
     /****************************************/
     /* Start BoardComm thread               */
+    pthread_mutex_lock(&lockSerial);
     memcpy(tlvLocUpdate, tlvLocUpdateDefaults, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
-    checksum = ComputeChecksum(tlvLocUpdate, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1)
+    checksum = ComputeChecksum(tlvLocUpdate, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
     tlvLocUpdate[LENGTH_LOC_UPDATE + TLV_OVERHEAD] = checksum;
+    pthread_mutex_unlock(&lockSerial);
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
     }
@@ -362,8 +408,10 @@ void HandleClient( void )
             socketIntf.Write(response, RESPONSE_LENGTH);
         } else {
             // restore defaults
+            pthread_mutex_lock(&lockSerial);
             memcpy(tlvLocUpdate, tlvLocUpdateDefaults,
               LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
+            pthread_mutex_unlock(&lockSerial);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             break;
@@ -397,7 +445,9 @@ void* BoardComms(void *arg)
 
     while (running) {
         // Send the board the data that we've been updating with interpreted socket data
+        pthread_mutex_lock(&lockSerial);
         SerialWriteNBytes(tlvLocUpdate, LENGTH_LOC_UPDATE);
+        pthread_mutex_unlock(&lockSerial);
 
         // Give board a moment to respond
         usleep(SERIAL_READ_DELAY);
@@ -420,6 +470,12 @@ void* BoardComms(void *arg)
 
 void InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
+    char *strInput;
+
+    // preserve original string and null terminate
+    strInput = (char*)malloc(length+1);
+    strncpy(strInput, (char*)data, length);
+    strInput[length] = 0;
 
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
@@ -431,6 +487,31 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     //  set motor[A,B,C,D] ####
     // It'd be cool to chain these together so they arrive all at the same time
     //  set motorA 500; set motorB 500;
+
+    // look for 'set'
+    if ( strcasestr(strInput, "setServo") != NULL ) {
+
+    } else if ( strcasestr(strInput, "setMotor") != NULL ) {
+
+    } else if ( strcasestr(strInput, "Go") != NULL ) {
+
+    } else if ( strcasestr(strInput, "Stop") != NULL ) {
+
+    } else if ( strcasestr(strInput, "Back") != NULL ) {
+
+    } else if ( strcasestr(strInput, "PivotRight") != NULL ) {
+
+    } else if ( strcasestr(strInput, "PivotLeft") != NULL ) {
+
+    } else if ( strcasestr(strInput, "TurnRight") != NULL ) {
+
+    } else if ( strcasestr(strInput, "TurnLeft") != NULL ) {
+
+    } else {
+
+    }
+
+
 
 
 #ifdef DEAD
@@ -506,18 +587,6 @@ void* Webcam(void *arg) {
     return NULL;
 } //end Webcam
 
-static uint8_t ComputeChecksum(uint8_t *input, uint32_t length)
-{
-    int i;
-    uint8_t checksum;
-    checksum = 0;
-
-    for ( i = 0; i < length; i++ ) {
-        checksum = checksum ^ input[i];
-    }
-
-    return checksum;
-}
 
 /****************************************************************************/
 #endif

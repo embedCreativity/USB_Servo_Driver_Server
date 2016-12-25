@@ -99,8 +99,11 @@
 #define DFLT_SERVO          (SERVO_REFRESH_PERIOD - SERVO_MID_PERIOD)
 #define DFLT_EXT_LED    1
 
-// prototypes
-static uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
+void*   Webcam(void *arg);
+void*   BoardComms(void *arg);
+void    HandleClient( void );
+void    InterpretSocketCommand(uint8_t *data, uint32_t length);
+uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
 
 #endif
 
