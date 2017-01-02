@@ -60,8 +60,8 @@
 /* ------------------------------------------------------------ */
 
 //--- TODO: protect all instances with pthread mutexes
-// This is what we send the board
-uint8_t tlvLocUpdate[LENGTH_LOC_UPDATE];
+// This is what we send to the board
+tlvLocUpdateDefaults_T locUpdates;
 // This is what we send the client
 uint8_t response[RESPONSE_LENGTH];
 
@@ -108,26 +108,6 @@ uint8_t tlvLocUpdateDefaults[] = {
     (0xFF & (DFLT_SERVO >> 8)),  // EXT_LED
     (0xFF & (DFLT_SERVO))       // EXT LED - LSB
 };
-
-typedef struct _tlvLocUpdateDefaults_T {
-    uint8_t type;
-    uint8_t length;
-    uint8_t motorA[3];
-    uint8_t motorB[3];
-    uint8_t motorC[3];
-    uint8_t motorD[3];
-    uint8_t servo1[3];
-    uint8_t servo2[3];
-    uint8_t servo3[3];
-    uint8_t servo4[3];
-    uint8_t servo5[3];
-    uint8_t servo6[3];
-    uint8_t servo7[3];
-    uint8_t servo8[3];
-    uint8_t extLed[3];
-} __attribute__ ((__packed__)) tlvLocUpdateDefaults_T;
-
-tlvLocUpdateDefaults_T locUpdates;
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -389,9 +369,8 @@ void HandleClient( void )
     /****************************************/
     /* Start BoardComm thread               */
     pthread_mutex_lock(&lockSerial);
-    memcpy(tlvLocUpdate, tlvLocUpdateDefaults, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
-    checksum = ComputeChecksum(tlvLocUpdate, LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
-    tlvLocUpdate[LENGTH_LOC_UPDATE + TLV_OVERHEAD] = checksum;
+    memcpy(locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
+    locUpdates.checksum = ComputeChecksum(locUpdates, sizeof(tlvLocUpdateDefaults_T) - 1);
     pthread_mutex_unlock(&lockSerial);
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
@@ -409,8 +388,9 @@ void HandleClient( void )
         } else {
             // restore defaults
             pthread_mutex_lock(&lockSerial);
-            memcpy(tlvLocUpdate, tlvLocUpdateDefaults,
-              LENGTH_LOC_UPDATE + TLV_OVERHEAD - 1);
+            memcpy(locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
+            locUpdates.checksum = ComputeChecksum(locUpdates,
+                sizeof(tlvLocUpdateDefaults_T) - 1);
             pthread_mutex_unlock(&lockSerial);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
@@ -446,7 +426,7 @@ void* BoardComms(void *arg)
     while (running) {
         // Send the board the data that we've been updating with interpreted socket data
         pthread_mutex_lock(&lockSerial);
-        SerialWriteNBytes(tlvLocUpdate, LENGTH_LOC_UPDATE);
+        SerialWriteNBytes(locUpdates, sizeof(tlvLocUpdateDefaults_T));
         pthread_mutex_unlock(&lockSerial);
 
         // Give board a moment to respond

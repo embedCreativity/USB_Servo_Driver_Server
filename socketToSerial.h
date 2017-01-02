@@ -99,6 +99,25 @@
 #define DFLT_SERVO          (SERVO_REFRESH_PERIOD - SERVO_MID_PERIOD)
 #define DFLT_EXT_LED    1
 
+typedef struct _tlvLocUpdateDefaults_T {
+    uint8_t type;
+    uint8_t length;
+    uint8_t motorA[3];
+    uint8_t motorB[3];
+    uint8_t motorC[3];
+    uint8_t motorD[3];
+    uint8_t servo1[3];
+    uint8_t servo2[3];
+    uint8_t servo3[3];
+    uint8_t servo4[3];
+    uint8_t servo5[3];
+    uint8_t servo6[3];
+    uint8_t servo7[3];
+    uint8_t servo8[3];
+    uint8_t extLed[3];
+    uint8_t checksum;
+} __attribute__ ((__packed__)) tlvLocUpdateDefaults_T;
+
 void*   Webcam(void *arg);
 void*   BoardComms(void *arg);
 void    HandleClient( void );
