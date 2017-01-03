@@ -118,6 +118,42 @@ typedef struct _tlvLocUpdateDefaults_T {
     uint8_t checksum;
 } __attribute__ ((__packed__)) tlvLocUpdateDefaults_T;
 
+// This data structure gets written to a file and read upon starting
+// It holds all the default values for the board
+typedef struct _savedDefaults_T {
+    uint8_t motorAGo[3];
+    uint8_t motorBGo[3];
+    uint8_t motorCGo[3];
+    uint8_t motorDGo[3];
+    uint8_t motorABack[3];
+    uint8_t motorBBack[3];
+    uint8_t motorCBack[3];
+    uint8_t motorDBack[3];
+    uint8_t motorAStop[3];
+    uint8_t motorBStop[3];
+    uint8_t motorCStop[3];
+    uint8_t motorDStop[3];
+    uint8_t motorAPivotRight[3];
+    uint8_t motorBPivotRight[3];
+    uint8_t motorCPivotRight[3];
+    uint8_t motorDPivotRight[3];
+    uint8_t motorAPivotLeft[3];
+    uint8_t motorBPivotLeft[3];
+    uint8_t motorCPivotLeft[3];
+    uint8_t motorDPivotLeft[3];
+    uint8_t motorATurnRight[3];
+    uint8_t motorBTurnRight[3];
+    uint8_t motorCTurnRight[3];
+    uint8_t motorDTurnRight[3];
+    uint8_t motorATurnLeft[3];
+    uint8_t motorBTurnLeft[3];
+    uint8_t motorCTurnLeft[3];
+    uint8_t motorDTurnLeft[3];
+
+
+} __attribute__ ((__packed__)) savedDefaults_T;
+
+
 void*   Webcam(void *arg);
 void*   BoardComms(void *arg);
 void    HandleClient( void );

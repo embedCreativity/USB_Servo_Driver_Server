@@ -62,6 +62,10 @@
 //--- TODO: protect all instances with pthread mutexes
 // This is what we send to the board
 tlvLocUpdateDefaults_T locUpdates;
+
+// structure of saved default values
+savedDefaults_T locDefaults;
+
 // This is what we send the client
 uint8_t response[RESPONSE_LENGTH];
 
@@ -238,8 +242,6 @@ int main(int argc, char *argv[])
 
     // init globals
     running = false;
-    tlvLocUpdate[POS_TLV_TYPE] = TYPE_LOC_UPDATE;
-    tlvLocUpdate[POS_TLV_LENGTH] = LENGTH_LOC_UPDATE;
 
     // Setup signal handling
     signal(SIGHUP, signal_handler);
@@ -357,7 +359,6 @@ void HandleClient( void )
 {
     uint8_t socketRx[BUFFSIZE];
     uint32_t cntSocketRx;
-    uint8_t checksum;
 
     #if defined(WEBCAM)
     // Start webcam thread
@@ -369,8 +370,8 @@ void HandleClient( void )
     /****************************************/
     /* Start BoardComm thread               */
     pthread_mutex_lock(&lockSerial);
-    memcpy(locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
-    locUpdates.checksum = ComputeChecksum(locUpdates, sizeof(tlvLocUpdateDefaults_T) - 1);
+    memcpy(&locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
+    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates, sizeof(tlvLocUpdateDefaults_T) - 1);
     pthread_mutex_unlock(&lockSerial);
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         printf("ERROR: pthread_create(&threadBoardComms...\n");
@@ -388,8 +389,8 @@ void HandleClient( void )
         } else {
             // restore defaults
             pthread_mutex_lock(&lockSerial);
-            memcpy(locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
-            locUpdates.checksum = ComputeChecksum(locUpdates,
+            memcpy(&locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
+            locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates,
                 sizeof(tlvLocUpdateDefaults_T) - 1);
             pthread_mutex_unlock(&lockSerial);
             socketIntf.Close(); // close client connection
@@ -426,7 +427,7 @@ void* BoardComms(void *arg)
     while (running) {
         // Send the board the data that we've been updating with interpreted socket data
         pthread_mutex_lock(&lockSerial);
-        SerialWriteNBytes(locUpdates, sizeof(tlvLocUpdateDefaults_T));
+        SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdateDefaults_T));
         pthread_mutex_unlock(&lockSerial);
 
         // Give board a moment to respond
@@ -468,30 +469,58 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     // It'd be cool to chain these together so they arrive all at the same time
     //  set motorA 500; set motorB 500;
 
+    // lock access to the structure
+    pthread_mutex_lock(&lockSerial);
+
     // look for 'set'
     if ( strcasestr(strInput, "setServo") != NULL ) {
 
     } else if ( strcasestr(strInput, "setMotor") != NULL ) {
 
     } else if ( strcasestr(strInput, "Go") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorAGo, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBGo, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCGo, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDGo, 3);
     } else if ( strcasestr(strInput, "Stop") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorAStop, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBStop, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCStop, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDStop, 3);
     } else if ( strcasestr(strInput, "Back") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorABack, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBBack, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCBack, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDBack, 3);
     } else if ( strcasestr(strInput, "PivotRight") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorAPivotRight, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBPivotRight, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCPivotRight, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDPivotRight, 3);
     } else if ( strcasestr(strInput, "PivotLeft") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorAPivotLeft, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBPivotLeft, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCPivotLeft, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDPivotLeft, 3);
     } else if ( strcasestr(strInput, "TurnRight") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorATurnRight, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBTurnRight, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCTurnRight, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDTurnRight, 3);
     } else if ( strcasestr(strInput, "TurnLeft") != NULL ) {
-
+       memcpy(locUpdates.motorA, locDefaults.motorATurnLeft, 3);
+       memcpy(locUpdates.motorB, locDefaults.motorBTurnLeft, 3);
+       memcpy(locUpdates.motorC, locDefaults.motorCTurnLeft, 3);
+       memcpy(locUpdates.motorD, locDefaults.motorDTurnLeft, 3);
     } else {
 
     }
 
-
+    // Update checksum
+    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates,
+        sizeof(tlvLocUpdateDefaults_T) - 1);
+    // Release the structure
+    pthread_mutex_unlock(&lockSerial);
 
 
 #ifdef DEAD
