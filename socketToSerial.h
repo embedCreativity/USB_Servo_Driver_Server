@@ -36,6 +36,8 @@
 
 #define DAEMON_NAME "serialServer"
 
+#define DEFAULT_FILE "defaults.bin"
+
 // From TivaPWM.h
 // 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
 #define SERVO_REFRESH_PERIOD        1600000
@@ -99,7 +101,7 @@
 #define DFLT_SERVO          (SERVO_REFRESH_PERIOD - SERVO_MID_PERIOD)
 #define DFLT_EXT_LED    1
 
-typedef struct _tlvLocUpdateDefaults_T {
+typedef struct _tlvLocUpdates_T {
     uint8_t type;
     uint8_t length;
     uint8_t motorA[3];
@@ -116,11 +118,24 @@ typedef struct _tlvLocUpdateDefaults_T {
     uint8_t servo8[3];
     uint8_t extLed[3];
     uint8_t checksum;
-} __attribute__ ((__packed__)) tlvLocUpdateDefaults_T;
+} __attribute__ ((__packed__)) tlvLocUpdates_T;
 
 // This data structure gets written to a file and read upon starting
 // It holds all the default values for the board
 typedef struct _savedDefaults_T {
+    uint8_t motorADefault[3];
+    uint8_t motorBDefault[3];
+    uint8_t motorCDefault[3];
+    uint8_t motorDDefault[3];
+    uint8_t servo1Default[3];
+    uint8_t servo2Default[3];
+    uint8_t servo3Default[3];
+    uint8_t servo4Default[3];
+    uint8_t servo5Default[3];
+    uint8_t servo6Default[3];
+    uint8_t servo7Default[3];
+    uint8_t servo8Default[3];
+    uint8_t extLedDefault[3];
     uint8_t motorAGo[3];
     uint8_t motorBGo[3];
     uint8_t motorCGo[3];
@@ -153,7 +168,9 @@ typedef struct _savedDefaults_T {
 
 } __attribute__ ((__packed__)) savedDefaults_T;
 
-
+void    SetDefaults (void);
+bool    LoadDefaults (void);
+bool    SaveDefaults (void);
 void*   Webcam(void *arg);
 void*   BoardComms(void *arg);
 void    HandleClient( void );

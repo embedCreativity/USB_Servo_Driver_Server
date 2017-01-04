@@ -12,10 +12,15 @@ socketToSerial.o: socketToSerial.c
 SerialControl.o: SerialControl.c
 	$(CC) $(CFLAGS) -c SerialControl.c
 
-all: $(ProgramName)
+setDefaults: setDefaults.o
+	$(CC) setDefaults.o -o setDefaults
+setDefaults.o: setDefaults.c
+	$(CC) $(CFLAGS) -c setDefaults.c
+
+all: $(ProgramName) setDefaults
 
 # remove object files and executable when user executes "make clean"
 clean:
-	rm -f *.o socketToSerial
+	rm -f *.o socketToSerial setDefaults
 
 

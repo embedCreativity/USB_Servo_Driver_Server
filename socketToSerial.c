@@ -61,7 +61,7 @@
 
 //--- TODO: protect all instances with pthread mutexes
 // This is what we send to the board
-tlvLocUpdateDefaults_T locUpdates;
+tlvLocUpdates_T locUpdates;
 
 // structure of saved default values
 savedDefaults_T locDefaults;
@@ -69,49 +69,6 @@ savedDefaults_T locDefaults;
 // This is what we send the client
 uint8_t response[RESPONSE_LENGTH];
 
-uint8_t tlvLocUpdateDefaults[] = {
-    TYPE_LOC_UPDATE,            // Pos: 0
-    LENGTH_LOC_UPDATE,          // Pos: 1 ...
-    (0xFF & (DFLT_MOTOR >> 16)), // Motor A - MSB first
-    (0xFF & (DFLT_MOTOR >> 8)),  // Motor A
-    (0xFF & (DFLT_MOTOR)),       // Motor A - LSB
-    (0xFF & (DFLT_MOTOR >> 16)), // Motor B - MSB first
-    (0xFF & (DFLT_MOTOR >> 8)),  // Motor B
-    (0xFF & (DFLT_MOTOR)),       // Motor B - LSB
-    (0xFF & (DFLT_MOTOR >> 16)), // Motor C - MSB first
-    (0xFF & (DFLT_MOTOR >> 8)),  // Motor C
-    (0xFF & (DFLT_MOTOR)),       // Motor C - LSB
-    (0xFF & (DFLT_MOTOR >> 16)), // Motor D - MSB first
-    (0xFF & (DFLT_MOTOR >> 8)),  // Motor D
-    (0xFF & (DFLT_MOTOR)),       // Motor D - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 1 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 1
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 1 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 2 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 2
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 2 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 3 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 3
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 3 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 4 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 4
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 4 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 5 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 5
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 5 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 6 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 6
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 6 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 7 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 7
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 7 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // Servo Channel 8 - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // Servo Channel 8
-    (0xFF & (DFLT_SERVO)),       // Servo Channel 8 - LSB
-    (0xFF & (DFLT_SERVO>> 16)),  // EXT LED - MSB
-    (0xFF & (DFLT_SERVO >> 8)),  // EXT_LED
-    (0xFF & (DFLT_SERVO))       // EXT LED - LSB
-};
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -363,18 +320,22 @@ void HandleClient( void )
     #if defined(WEBCAM)
     // Start webcam thread
     if (pthread_create(&threadWebcam, NULL, &Webcam, NULL)) {
-        printf("ERROR;  pthread_create(&threadWebcam... \n");
+        syslog(LOG_PERROR, "ERROR;  pthread_create(&threadWebcam... \n");
     } // end if
     #endif
 
     /****************************************/
     /* Start BoardComm thread               */
     pthread_mutex_lock(&lockSerial);
-    memcpy(&locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
-    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates, sizeof(tlvLocUpdateDefaults_T) - 1);
+    if ( false == LoadDefaults() ) {
+        syslog(LOG_PERROR, "ERROR: Could not load defaults from: %s\n", DEFAULT_FILE);
+        return;
+    }
+    SetDefaults();
     pthread_mutex_unlock(&lockSerial);
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
-        printf("ERROR: pthread_create(&threadBoardComms...\n");
+        syslog(LOG_PERROR, "ERROR: pthread_create(&threadBoardComms...\n");
+        return;
     }
     /****************************************/
 
@@ -389,9 +350,7 @@ void HandleClient( void )
         } else {
             // restore defaults
             pthread_mutex_lock(&lockSerial);
-            memcpy(&locUpdates, tlvLocUpdateDefaults, sizeof(tlvLocUpdateDefaults_T) - 1);
-            locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates,
-                sizeof(tlvLocUpdateDefaults_T) - 1);
+            SetDefaults();
             pthread_mutex_unlock(&lockSerial);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
@@ -427,7 +386,7 @@ void* BoardComms(void *arg)
     while (running) {
         // Send the board the data that we've been updating with interpreted socket data
         pthread_mutex_lock(&lockSerial);
-        SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdateDefaults_T));
+        SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T));
         pthread_mutex_unlock(&lockSerial);
 
         // Give board a moment to respond
@@ -518,7 +477,7 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
 
     // Update checksum
     locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates,
-        sizeof(tlvLocUpdateDefaults_T) - 1);
+        sizeof(tlvLocUpdates_T) - 1);
     // Release the structure
     pthread_mutex_unlock(&lockSerial);
 
@@ -562,6 +521,48 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
 
 /************************ END COPIED CODE *******************/
 #endif
+}
+
+void SetDefaults ( void )
+{
+    memcpy(locUpdates.motorA, locDefaults.motorADefault, 3);
+    memcpy(locUpdates.motorB, locDefaults.motorBDefault, 3);
+    memcpy(locUpdates.motorC, locDefaults.motorCDefault, 3);
+    memcpy(locUpdates.motorD, locDefaults.motorDDefault, 3);
+    memcpy(locUpdates.servo1, locDefaults.servo1Default, 3);
+    memcpy(locUpdates.servo2, locDefaults.servo2Default, 3);
+    memcpy(locUpdates.servo3, locDefaults.servo3Default, 3);
+    memcpy(locUpdates.servo4, locDefaults.servo4Default, 3);
+    memcpy(locUpdates.servo5, locDefaults.servo5Default, 3);
+    memcpy(locUpdates.servo6, locDefaults.servo6Default, 3);
+    memcpy(locUpdates.servo7, locDefaults.servo7Default, 3);
+    memcpy(locUpdates.servo8, locDefaults.servo8Default, 3);
+    memcpy(locUpdates.extLed, locDefaults.extLedDefault, 3);
+    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T) - 1);
+}
+
+bool LoadDefaults ( void )
+{
+    int num;
+    FILE *fd;
+    if ( (fd = fopen(DEFAULT_FILE, "r") ) == NULL ) return false;
+    num = fread(&locDefaults, 1, sizeof(locDefaults), fd);
+    fclose(fd);
+    if(num != sizeof(locDefaults)) return false;
+
+    return true;
+}
+
+bool SaveDefaults ( void )
+{
+    int num;
+    FILE *fd;
+    if ( (fd = fopen(DEFAULT_FILE, "w") ) == NULL ) return false;
+    num = fwrite(&locDefaults, 1, sizeof(locDefaults), fd);
+    fclose(fd);
+    if(num != sizeof(locDefaults)) return false;
+
+    return true;
 }
 
 #ifdef WEBCAM
