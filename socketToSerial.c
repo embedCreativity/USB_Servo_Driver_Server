@@ -326,13 +326,11 @@ void HandleClient( void )
 
     /****************************************/
     /* Start BoardComm thread               */
-    pthread_mutex_lock(&lockSerial);
     if ( false == LoadDefaults() ) {
         syslog(LOG_PERROR, "ERROR: Could not load defaults from: %s\n", DEFAULT_FILE);
         return;
     }
     SetDefaults();
-    pthread_mutex_unlock(&lockSerial);
     if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
         syslog(LOG_PERROR, "ERROR: pthread_create(&threadBoardComms...\n");
         return;
@@ -349,9 +347,7 @@ void HandleClient( void )
             socketIntf.Write(response, RESPONSE_LENGTH);
         } else {
             // restore defaults
-            pthread_mutex_lock(&lockSerial);
             SetDefaults();
-            pthread_mutex_unlock(&lockSerial);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             break;
@@ -480,51 +476,11 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
         sizeof(tlvLocUpdates_T) - 1);
     // Release the structure
     pthread_mutex_unlock(&lockSerial);
-
-
-#ifdef DEAD
-/*********************** Begin copied code ***********************/
-// All position definitions start at 2.  0 is type, 1 is length, 2 is start of values thereafter.  Checksum is last
-// Position of checksum is always (LENGTH_* + 2)
-
-/****** OUTGOING DATA - FROM DEVICE TO PC ******/
-//   Local UPDATE position data
-//     There are 13 PWM values that need to be updated, each being 24-bits#define TYPE_LOC_UPDATE     0xAA
-
-        case TYPE_LOC_UPDATE:
-            /*
-
-            If code is compiled like this:
-                uint32_t number;
-                uint8_t *ptr;
-                uint8_t i;
-
-                number = 0x12345678;
-                ptr = (uint8_t*)(&number);
-
-                for ( i = 0; i < 4; i++ ) {
-                    printf("number[%d]: 0x%x\n", i, *ptr);
-                    ptr++;
-                }
-
-            The result will be this:
-                number[0]: 0x78
-                number[1]: 0x56
-                number[2]: 0x34
-                number[3]: 0x12
-
-            Thus, the pointer comes from MSB downto LSB as it increments in memory
-             */
-            // MOTOR A - wide timer
-            value = (uint32_t)((command[POS_EN_A] << 16)|(command[POS_EN_A + 1] << 8)|(command[POS_EN_A + 2]));
-            TimerMatchSet(SERVO_8_MOTOR_A_TIMER_BASE, MOTOR_A_TIMER, value);
-
-/************************ END COPIED CODE *******************/
-#endif
 }
 
 void SetDefaults ( void )
 {
+    pthread_mutex_lock(&lockSerial);
     memcpy(locUpdates.motorA, locDefaults.motorADefault, 3);
     memcpy(locUpdates.motorB, locDefaults.motorBDefault, 3);
     memcpy(locUpdates.motorC, locDefaults.motorCDefault, 3);
@@ -539,6 +495,7 @@ void SetDefaults ( void )
     memcpy(locUpdates.servo8, locDefaults.servo8Default, 3);
     memcpy(locUpdates.extLed, locDefaults.extLedDefault, 3);
     locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T) - 1);
+    pthread_mutex_unlock(&lockSerial);
 }
 
 bool LoadDefaults ( void )
