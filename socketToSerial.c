@@ -43,7 +43,7 @@
 #include <assert.h>
 #include <signal.h>
 #include <stdbool.h>
-#include "../Socket/Socket.h"
+#include <socket.h> // My installed library
 
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
 
