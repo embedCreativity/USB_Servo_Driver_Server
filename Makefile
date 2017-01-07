@@ -1,8 +1,8 @@
 ProgramName := socketToSerial
 
-LIBS += -lSocket -lpthread
+LIBS += -lsocket -lpthread
 CFLAGS += -g -Wall
-LDFLAGS += -L.
+LDFLAGS += -L/usr/lib
 
 socketToSerial: socketToSerial.o SerialControl.o
 	$(CC) $(CFLAGS) $(LDFLAGS) socketToSerial.o SerialControl.o -o socketToSerial $(LIBS)
