@@ -9,7 +9,7 @@ DEFAULT_PORT = 54321
 DEFAULT_MSG = 'Go'
 PERIOD_BEFORE_CLOSE = 2 # seconds
 
-class Test:
+class RoboAPI:
 
     def __init__(self, port=DEFAULT_PORT):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -37,7 +37,7 @@ if (__name__ == '__main__' ):
         print "usage: " + str(sys.argv[0]) + " <port> <command>"
         quit()
 
-    foo = Test(port)
+    foo = RoboAPI(port)
     foo.send(sys.argv[2])
     time.sleep(PERIOD_BEFORE_CLOSE)
     foo.close()
