@@ -66,21 +66,15 @@ tlvLocUpdates_T locUpdates;
 // structure of saved default values
 savedDefaults_T locDefaults;
 
-// This is what we send the client
-uint8_t response[RESPONSE_LENGTH];
-
+// struct for holding data,len returned from SerialRead
+serialRx_T serialRxData;
 
 // handles to the threads
 pthread_t threadWebcam;
-pthread_t threadBoardComms;
-
-// mutex to protect serial port payload
-pthread_mutex_t lockSerial;
 
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
 int baudRate;
-bool running;
 extern SocketInterface_T socketIntf;
 
 /* ------------------------------------------------------------ */
@@ -118,25 +112,18 @@ extern SocketInterface_T socketIntf;
 **      down in emergency situations.  This function is installed
 **      as a signal handler in the 'main()' function.
 */
-void signal_handler(int sig) {
-
-    switch(sig) {
+void signal_handler(int sig)
+{
+    switch(sig)
+    {
         case SIGHUP:
         case SIGTERM:
         case SIGINT:
         case SIGQUIT:
-            // Notify thread that we're closing
-            if ( running ) {
-                running = false;
-                // Wait for threads to return
-            #if defined(WEBCAM)
-                pthread_join(threadWebcam, NULL);
-            #endif
-                pthread_join(threadBoardComms, NULL);
-            }
-
-            // clean up our mutex
-            pthread_mutex_destroy(&lockSerial);
+            // Wait for threads to return
+        #if defined(WEBCAM)
+            pthread_join(threadWebcam, NULL);
+        #endif
 
             syslog(LOG_WARNING, "Received SIGHUP signal.");
             socketIntf.Close(); // close connection to client
@@ -197,22 +184,11 @@ int main(int argc, char *argv[])
     int daemonize = 1;
 #endif
 
-    // init globals
-    running = false;
-
     // Setup signal handling
     signal(SIGHUP, signal_handler);
     signal(SIGTERM, signal_handler);
     signal(SIGINT, signal_handler);
     signal(SIGQUIT, signal_handler);
-
-    // setup mutexes
-    if ( 0 != pthread_mutex_init(&lockSerial, NULL) ) {
-        syslog(LOG_PERROR, "ERROR: Failed to init mutex.\n");
-        exit(EXIT_FAILURE);
-    }
-
-    syslog(LOG_INFO, "%s daemon starting up", DAEMON_NAME);
 
     // Setup syslog logging - see SETLOGMASK(3)
 #if defined(DEBUG)
@@ -222,6 +198,8 @@ int main(int argc, char *argv[])
     setlogmask(LOG_UPTO(LOG_INFO));
     openlog(DAEMON_NAME, LOG_CONS, LOG_USER);
 #endif
+
+    syslog(LOG_INFO, "%s daemon starting up", DAEMON_NAME);
 
     /* Our process ID and Session ID */
     pid_t pid, sid;
@@ -263,27 +241,29 @@ int main(int argc, char *argv[])
     }
 
     // Open port and wait for client to connect
-    printf("Attempting to connect on port %d...\n", portNum);
+    syslog(LOG_INFO,"Attempting to connect on port %d...\n", portNum);
     if ( socketIntf.OpenAndConnect(portNum) ) {
-        printf("Connected!\n");
+        syslog(LOG_INFO, "Connected!");
     } else {
-        printf("Failed to connect!\n");
+        syslog(LOG_INFO, "Failed to connect to socket - exit");
         return 0;
     }
 
-    /* Run until cancelled */
-    while (fTrue) {
+    locUpdates.type = TYPE_LOC_UPDATE;
+    locUpdates.length = LENGTH_LOC_UPDATE;
 
+    /* Run until cancelled */
+    while (true) {
         syslog(LOG_INFO, "Client connected.");
         HandleClient();
         syslog(LOG_INFO, "Client disconnected.");
 
         // Re-open port and wait for client to connect
-        printf("Attempting to connect on port %d...\n", portNum);
+        syslog(LOG_INFO,"Attempting to connect on port %d...\n", portNum);
         if ( socketIntf.OpenAndConnect(portNum) ) {
-            printf("Connected!\n");
+            syslog(LOG_INFO, "Connected!");
         } else {
-            printf("Failed to connect!\n");
+            syslog(LOG_INFO, "Failed to connect to socket - exit");
             return 0;
         }
     }
@@ -300,7 +280,7 @@ int main(int argc, char *argv[])
 **      void    HandleClient()
 **
 **  Parameters:
-**      int sock, handle to TCP connection
+**      none
 **
 **  Return Values:
 **      none
@@ -315,7 +295,7 @@ int main(int argc, char *argv[])
 void HandleClient( void )
 {
     uint8_t socketRx[BUFFSIZE];
-    uint32_t cntSocketRx;
+    int32_t cntSocketRx;
 
     #if defined(WEBCAM)
     // Start webcam thread
@@ -325,49 +305,12 @@ void HandleClient( void )
     #endif
 
     /****************************************/
-    /* Start BoardComm thread               */
+    /* Prep Serial Handling                 */
     if ( false == LoadDefaults() ) {
         syslog(LOG_PERROR, "ERROR: Could not load defaults from: %s\n", DEFAULT_FILE);
         return;
     }
     SetDefaults();
-    if (pthread_create(&threadBoardComms, NULL, &BoardComms, NULL)) {
-        syslog(LOG_PERROR, "ERROR: pthread_create(&threadBoardComms...\n");
-        return;
-    }
-    /****************************************/
-
-    /**************** Main TCP linked section **************************/
-    while(fTrue) {
-        cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
-        if ( cntSocketRx> 0 ) {
-            InterpretSocketCommand(socketRx, cntSocketRx);
-
-            // Push serial response back to client over the socket
-            socketIntf.Write(response, RESPONSE_LENGTH);
-        } else {
-            // restore defaults
-            SetDefaults();
-            socketIntf.Close(); // close client connection
-            socketIntf.Close(); // close socket // may not be the best idea, ok for now
-            break;
-        }
-    }// end while
-    /********************************************************************/
-} //end HandleClient()
-
-void* BoardComms(void *arg)
-{
-    uint8_t serialRx[BUFFSIZE];
-    int     cntSerialRx;
-
-    /*************************
-     This code should run in a loop as long as a client is connected over socket.
-     Client connects
-     this loop runs and pulls data from a global struct
-     client disconnects
-     this loop exits
-    **************************/
 
     // Bring up the serial port
     if ( ! SerialInit(serialPort, baudRate) ) {
@@ -376,42 +319,65 @@ void* BoardComms(void *arg)
 #else
         syslog(LOG_PERROR, "ERROR: Couldn't open %s.\n", serialPort);
 #endif
-        return NULL;
+        return;
     }
+    /****************************************/
 
-    while (running) {
-        // Send the board the data that we've been updating with interpreted socket data
-        pthread_mutex_lock(&lockSerial);
-        SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T));
-        pthread_mutex_unlock(&lockSerial);
+    /**************** Main TCP linked section **************************/
+    while(true) {
+        cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
+        if ( cntSocketRx > 0 ) {
+            InterpretSocketCommand(socketRx, cntSocketRx);
+            BoardComm(); // transmit the packet to the board
+            // Push serial response back to client over the socket
+            socketIntf.Write(serialRxData.data, serialRxData.len);
+        } else {
+            // restore defaults
+            SetDefaults();
+            syslog(LOG_INFO, "Client disconnected - resetting board\n");
+            BoardComm(); // restore back to defaults
+            socketIntf.Close(); // close client connection
+            socketIntf.Close(); // close socket // may not be the best idea, ok for now
+            SerialClose();
+            break;
+        }
+    }// end while
+    /********************************************************************/
+} //end HandleClient()
 
-        // Give board a moment to respond
-        usleep(SERIAL_READ_DELAY);
+void BoardComm ( void )
+{
+    // Send the board the data that we've been updating with interpreted socket data
+    SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T));
 
-        // Get response from serial ( should be ADC battery voltage reading )
-        cntSerialRx = SerialRead(serialRx);
-        cntSerialRx +=1; // Silence warning
+    // Give board a moment to respond
+    usleep(SERIAL_READ_DELAY);
 
-        // Interpret TLV contents and reformat for socket client
-
-        // Pack our response message into the buffer used by HandleClient()
-        //response[RESPONSE_LENGTH];
-
-        usleep(SERIAL_SLEEP_PERIOD);
-    }
-
-    SerialClose();
-    return NULL;
+    // Get response from serial ( should be ADC battery voltage reading )
+    serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)));
 }
 
 void InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
     char *strInput;
 
+    // sanity check
+    if ( data == NULL || length > 64 ) {
+        syslog(LOG_WARNING, "InterpretSocketCommand: failed input sanity check");
+        if (data == NULL) {
+            syslog(LOG_WARNING, "ISC()-->data = NULL, length: %d", length);
+        } else {
+            syslog(LOG_WARNING, "ISC()-->length = %d", length);
+        }
+        return;
+    }
     // preserve original string and null terminate
     strInput = (char*)malloc(length+1);
     strncpy(strInput, (char*)data, length);
     strInput[length] = 0;
+
+
+    syslog(LOG_INFO, "SocketRx: %s", strInput);
 
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
@@ -424,63 +390,58 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     // It'd be cool to chain these together so they arrive all at the same time
     //  set motorA 500; set motorB 500;
 
-    // lock access to the structure
-    pthread_mutex_lock(&lockSerial);
-
     // look for 'set'
     if ( strcasestr(strInput, "setServo") != NULL ) {
 
     } else if ( strcasestr(strInput, "setMotor") != NULL ) {
 
     } else if ( strcasestr(strInput, "Go") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorAGo, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBGo, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCGo, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDGo, 3);
+        syslog(LOG_INFO, "Go!");
+        memcpy(locUpdates.motorA, locDefaults.motorAGo, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBGo, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCGo, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDGo, 3);
     } else if ( strcasestr(strInput, "Stop") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorAStop, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBStop, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCStop, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDStop, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorAStop, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBStop, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCStop, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDStop, 3);
     } else if ( strcasestr(strInput, "Back") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorABack, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBBack, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCBack, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDBack, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorABack, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBBack, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCBack, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDBack, 3);
     } else if ( strcasestr(strInput, "PivotRight") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorAPivotRight, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBPivotRight, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCPivotRight, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDPivotRight, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorAPivotRight, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBPivotRight, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCPivotRight, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDPivotRight, 3);
     } else if ( strcasestr(strInput, "PivotLeft") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorAPivotLeft, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBPivotLeft, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCPivotLeft, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDPivotLeft, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorAPivotLeft, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBPivotLeft, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCPivotLeft, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDPivotLeft, 3);
     } else if ( strcasestr(strInput, "TurnRight") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorATurnRight, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBTurnRight, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCTurnRight, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDTurnRight, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorATurnRight, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBTurnRight, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCTurnRight, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDTurnRight, 3);
     } else if ( strcasestr(strInput, "TurnLeft") != NULL ) {
-       memcpy(locUpdates.motorA, locDefaults.motorATurnLeft, 3);
-       memcpy(locUpdates.motorB, locDefaults.motorBTurnLeft, 3);
-       memcpy(locUpdates.motorC, locDefaults.motorCTurnLeft, 3);
-       memcpy(locUpdates.motorD, locDefaults.motorDTurnLeft, 3);
+        memcpy(locUpdates.motorA, locDefaults.motorATurnLeft, 3);
+        memcpy(locUpdates.motorB, locDefaults.motorBTurnLeft, 3);
+        memcpy(locUpdates.motorC, locDefaults.motorCTurnLeft, 3);
+        memcpy(locUpdates.motorD, locDefaults.motorDTurnLeft, 3);
     } else {
 
     }
 
     // Update checksum
-    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates,
-        sizeof(tlvLocUpdates_T) - 1);
-    // Release the structure
-    pthread_mutex_unlock(&lockSerial);
+    locUpdates.checksum = ComputeChecksum((uint8_t*)(&locUpdates.motorA),
+        locUpdates.length);
 }
 
 void SetDefaults ( void )
 {
-    pthread_mutex_lock(&lockSerial);
     memcpy(locUpdates.motorA, locDefaults.motorADefault, 3);
     memcpy(locUpdates.motorB, locDefaults.motorBDefault, 3);
     memcpy(locUpdates.motorC, locDefaults.motorCDefault, 3);
@@ -494,8 +455,8 @@ void SetDefaults ( void )
     memcpy(locUpdates.servo7, locDefaults.servo7Default, 3);
     memcpy(locUpdates.servo8, locDefaults.servo8Default, 3);
     memcpy(locUpdates.extLed, locDefaults.extLedDefault, 3);
-    locUpdates.checksum = ComputeChecksum((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T) - 1);
-    pthread_mutex_unlock(&lockSerial);
+    locUpdates.checksum = ComputeChecksum((uint8_t*)(&locUpdates.motorA),
+        locUpdates.length);
 }
 
 bool LoadDefaults ( void )

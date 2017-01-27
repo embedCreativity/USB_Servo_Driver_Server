@@ -25,10 +25,6 @@
  *
  **********************************************************************************************/
 
-//boolean definitions
-#define fFalse          0
-#define fTrue           !fFalse
-
 #define MAXPENDING      1    /* Max connection requests */
 #define BUFFSIZE        1500
 
@@ -164,15 +160,18 @@ typedef struct _savedDefaults_T {
     uint8_t motorBTurnLeft[3];
     uint8_t motorCTurnLeft[3];
     uint8_t motorDTurnLeft[3];
-
-
 } __attribute__ ((__packed__)) savedDefaults_T;
+
+typedef struct _serialRx_T {
+    uint8_t len;
+    uint8_t data[64];
+} serialRx_T;
 
 void    SetDefaults (void);
 bool    LoadDefaults (void);
 bool    SaveDefaults (void);
 void*   Webcam(void *arg);
-void*   BoardComms(void *arg);
+void    BoardComm(void);
 void    HandleClient( void );
 void    InterpretSocketCommand(uint8_t *data, uint32_t length);
 uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
