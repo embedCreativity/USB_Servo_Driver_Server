@@ -34,6 +34,8 @@
 
 #define DEFAULT_FILE "defaults.bin"
 
+#define MAX_SOCKET_MSG_LEN 64
+
 // From TivaPWM.h
 // 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
 #define SERVO_REFRESH_PERIOD        1600000

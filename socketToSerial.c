@@ -362,12 +362,13 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     char *strInput;
 
     // sanity check
-    if ( data == NULL || length > 64 ) {
+    if ( data == NULL || length > MAX_SOCKET_MSG_LEN ) {
         syslog(LOG_WARNING, "InterpretSocketCommand: failed input sanity check");
         if (data == NULL) {
             syslog(LOG_WARNING, "ISC()-->data = NULL, length: %d", length);
         } else {
-            syslog(LOG_WARNING, "ISC()-->length = %d", length);
+            syslog(LOG_WARNING, "ISC()-->length = %d (max is %d)", length,\
+              MAX_SOCKET_MSG_LEN);
         }
         return;
     }
@@ -375,9 +376,6 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     strInput = (char*)malloc(length+1);
     strncpy(strInput, (char*)data, length);
     strInput[length] = 0;
-
-
-    syslog(LOG_INFO, "SocketRx: %s", strInput);
 
     // MSB first to LSB as we increment pointer in buffer. 24-bits each value
     //tlvLocUpdate[POS_EN_A] = foo;
