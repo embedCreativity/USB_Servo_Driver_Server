@@ -360,6 +360,7 @@ void BoardComm ( void )
 void InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
     char *strInput;
+    char *ptr;
 
     // sanity check
     if ( data == NULL || length > MAX_SOCKET_MSG_LEN ) {
@@ -377,9 +378,6 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     strncpy(strInput, (char*)data, length);
     strInput[length] = 0;
 
-    // MSB first to LSB as we increment pointer in buffer. 24-bits each value
-    //tlvLocUpdate[POS_EN_A] = foo;
-
     // start string parsing from here:
     // candidate command strings:
     //  Go, stop, back, pivot right, pivot left, turn right, turn left
@@ -388,10 +386,76 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     // It'd be cool to chain these together so they arrive all at the same time
     //  set motorA 500; set motorB 500;
 
-    // look for 'set'
     if ( strcasestr(strInput, "setServo") != NULL ) {
+        int servo;
+        int position;
+        int ret;
 
+        ptr = strcasestr(strInput, "setServo") + strlen("setServo");
+
+        // Grab arguments
+        ret = sscanf(ptr, "%d %d", &servo, &position);
+        if ( (ret != EOF) && (ret != 2) ) {
+            // Error
+            syslog(LOG_PERROR, "FORMAT ERROR [setServo] \
+              --> usage: setServo [servo] [position]. Rec'd: \"%s\"", ptr);
+        } else {
+            bool pass = true;
+            // Good - now sanity check
+            if ( (API_SERVO_MIN > servo) || (servo > API_SERVO_MAX) )
+            {
+                syslog(LOG_PERROR, "FORMAT ERROR [setServo] --> servo range \
+                  [%d to %d]. Rec'd: %d", API_SERVO_MIN, API_SERVO_MAX,
+                  servo);
+                pass = false;
+            }
+            if ( (API_SERVOPOS_MIN > position) || (position > API_SERVOPOS_MAX) )
+            {
+                syslog(LOG_PERROR, "FORMAT ERROR [setServo] --> position range \
+                  [%d to %d]. Rec'd: %d", API_SERVOPOS_MIN, API_SERVOPOS_MAX,
+                  position);
+                pass = false;
+            }
+            if ( pass )
+            { // Sanity check - passed
+                SetServo (servo, position);
+            }
+        }
     } else if ( strcasestr(strInput, "setMotor") != NULL ) {
+        int motor;
+        int power;
+        int ret;
+
+        ptr = strcasestr(strInput, "setMotor") + strlen("setMotor");
+
+        // Grab arguments
+        ret = sscanf(ptr, "%d %d", &motor, &power);
+        if ( (ret != EOF) && (ret != 2) ) {
+            // Error
+            syslog(LOG_PERROR, "FORMAT ERROR [setMotor] \
+              --> usage: setMotor [motor] [power]. Rec'd: \"%s\"", ptr);
+        } else {
+            bool pass = true;
+            // Good - now sanity check
+            if ( (API_MOTOR_MIN > motor) || (motor > API_MOTOR_MAX) )
+            {
+                syslog(LOG_PERROR, "FORMAT ERROR [setMotor] --> motor range \
+                  [%d to %d]. Rec'd: %d", API_MOTOR_MIN, API_MOTOR_MAX,
+                  motor);
+                pass = false;
+            }
+            if ( (API_MOTORPOWER_MIN > power) || (power > API_MOTORPOWER_MAX) )
+            {
+                syslog(LOG_PERROR, "FORMAT ERROR [setMotor] --> power range \
+                  [%d to %d]. Rec'd: %d", API_MOTORPOWER_MIN, API_MOTORPOWER_MAX,
+                  power);
+                pass = false;
+            }
+            if ( pass )
+            { // Sanity check - passed
+                SetMotor(motor, power);
+            }
+        }
 
     } else if ( strcasestr(strInput, "Go") != NULL ) {
         syslog(LOG_INFO, "Go!");
@@ -436,6 +500,82 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
     // Update checksum
     locUpdates.checksum = ComputeChecksum((uint8_t*)(&locUpdates.motorA),
         locUpdates.length);
+}
+
+void SetServo ( uint8_t servo, uint32_t position )
+{
+    uint32_t * ptrMotor;
+    uint32_t pos;
+
+    switch (servo)
+    {
+        case 1:
+            ptrMotor = (uint32_t*)&locUpdates.servo1;
+            break;
+        case 2:
+            ptrMotor = (uint32_t*)&locUpdates.servo2;
+            break;
+        case 3:
+            ptrMotor = (uint32_t*)&locUpdates.servo3;
+            break;
+        case 4:
+            ptrMotor = (uint32_t*)&locUpdates.servo4;
+            break;
+        case 5:
+            ptrMotor = (uint32_t*)&locUpdates.servo5;
+            break;
+        case 6:
+            ptrMotor = (uint32_t*)&locUpdates.servo6;
+            break;
+        case 7:
+            ptrMotor = (uint32_t*)&locUpdates.servo7;
+            break;
+        case 8:
+            ptrMotor = (uint32_t*)&locUpdates.servo8;
+            break;
+        default: // won't happen
+            break;
+    }
+    // map API range to board's expected range
+    pos = SERVO_MIN_PERIOD + (position * API_SERVOPOS_SCALAR);
+    // save into structure
+    memcpy(ptrMotor, &pos, 3);
+}
+
+void SetMotor ( uint8_t motor, uint32_t power )
+{
+    uint32_t * ptrMotor;
+
+    switch (motor)
+    {
+        case 1:
+            ptrMotor = (uint32_t*)&locUpdates.motorA;
+            break;
+        case 2:
+            ptrMotor = (uint32_t*)&locUpdates.motorB;
+            break;
+        case 3:
+            ptrMotor = (uint32_t*)&locUpdates.motorC;
+            break;
+        case 4:
+            ptrMotor = (uint32_t*)&locUpdates.motorD;
+            break;
+        default: // won't happen
+            break;
+    }
+    // map API range to board's expected range
+    if ( power == 0 ) {
+        power = MOTOR_REFRESH_PERIOD - 1; // off
+    } else {
+        power = MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN - (power * API_MOTORPOWER_SCALAR);
+    }
+    // power command can not be 0 or the refresh period. PWM register must be
+    // somewhere between the two extremes
+    //if ( power == 0 ) {
+    //    power = 1;
+    //}
+    // save into structure
+    memcpy(ptrMotor, &power, 3);
 }
 
 void SetDefaults ( void )

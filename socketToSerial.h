@@ -25,16 +25,26 @@
  *
  **********************************************************************************************/
 
+// Socket MSG API definitions
+#define API_SERVO_MIN 1
+#define API_SERVO_MAX 8
+#define API_SERVOPOS_MIN    0
+#define API_SERVOPOS_MAX    1500
+#define API_MOTOR_MIN       1
+#define API_MOTOR_MAX       4
+#define API_MOTORPOWER_MIN  0
+#define API_MOTORPOWER_MAX  1000
+#define MAX_SOCKET_MSG_LEN  64
+
+// Socket definitions
 #define MAXPENDING      1    /* Max connection requests */
 #define BUFFSIZE        1500
 
 #define LEN_SERIAL_PORT 32
 
+// Daemon definitions
 #define DAEMON_NAME "serialServer"
-
 #define DEFAULT_FILE "defaults.bin"
-
-#define MAX_SOCKET_MSG_LEN 64
 
 // From TivaPWM.h
 // 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
@@ -47,9 +57,20 @@
 // max = 2.25ms * 80M
 #define SERVO_MAX_PERIOD            180000
 
+// SERVO_MAX_PERIOD - SERVO_MIN_PERIOD) / API_SERVOPOS_MAX = 80
+#define API_SERVOPOS_SCALAR         80
+
 // 20KHz (outside audible?)
 #define MOTOR_REFRESH_PERIOD        4000
-//#define MOTOR_REFRESH_PERIOD        8000
+// Trial-and-error testing shows this is the minimum to
+//  get the motor to spin: 1720 -> for easy math, we're
+//  going to make this 2000
+#define MOTOR_MIN_SPIN              2000
+// MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN = 2000
+#define MOTOR_POWER_RANGE           2000
+
+// MOTOR_POWER_RANGE / API_MOTORPOWER_MAX = 2
+#define API_MOTORPOWER_SCALAR       2
 
 // 50Hz flicker
 #define EXTLED_REFRESH_PERIOD       1600000
@@ -176,6 +197,8 @@ void*   Webcam(void *arg);
 void    BoardComm(void);
 void    HandleClient( void );
 void    InterpretSocketCommand(uint8_t *data, uint32_t length);
+void    SetServo (uint8_t servo, uint32_t position);
+void    SetMotor (uint8_t motor, uint32_t power);
 uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
 
 #endif

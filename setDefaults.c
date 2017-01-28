@@ -174,12 +174,6 @@ void DisplaySettings ( void )
     printf("motorDTurnLeft: %d\n", temp);
 }
 
-void UserGetSetting ( uint8_t *dest, char *prompt )
-{
-    printf("Enter motorADefault: ");
-
-}
-
 void Usage ( char *prog )
 {
     printf("USAGE: \n");
