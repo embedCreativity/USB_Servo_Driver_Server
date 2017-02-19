@@ -456,7 +456,33 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
                 SetMotor(motor, power);
             }
         }
+    } else if ( strcasestr(strInput, "setLED") != NULL ) {
+        int power;
+        int ret;
 
+        ptr = strcasestr(strInput, "setLED") + strlen("setLED");
+
+        // Grab arguments
+        ret = sscanf(ptr, "%d", &power);
+        if ( (ret != EOF) && (ret != 1) ) {
+            // Error
+            syslog(LOG_PERROR, "FORMAT ERROR [setLED] \
+              --> usage: setLED [power]. Rec'd: \"%s\"", ptr);
+        } else {
+            bool pass = true;
+            // Good - now sanity check
+            if ( (API_LEDPOWER_MIN > power) || (power > API_LEDPOWER_MAX) )
+            {
+                syslog(LOG_PERROR, "FORMAT ERROR [setLED] --> power range \
+                  [%d to %d]. Rec'd: %d", API_LEDPOWER_MIN, API_LEDPOWER_MAX,
+                  power);
+                pass = false;
+            }
+            if ( pass )
+            { // Sanity check - passed
+                SetLED(power);
+            }
+        }
     } else if ( strcasestr(strInput, "Go") != NULL ) {
         syslog(LOG_INFO, "Go!");
         memcpy(locUpdates.motorA, locDefaults.motorAGo, 3);
@@ -542,7 +568,7 @@ void SetServo ( uint8_t servo, uint32_t position )
     memcpy(ptrMotor, &pos, 3);
 }
 
-void SetMotor ( uint8_t motor, uint32_t power )
+void SetMotor ( uint8_t motor, int32_t power )
 {
     uint32_t * ptrMotor;
 
@@ -569,13 +595,32 @@ void SetMotor ( uint8_t motor, uint32_t power )
     } else {
         power = MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN - (power * API_MOTORPOWER_SCALAR);
     }
+    // we set the most significant bit to indicate a backward direction
+    if ( power < 0 ) {
+        power |= (1 << 24);
+    }
+    memcpy(ptrMotor, &power, 3);
+}
+
+void SetLED ( uint32_t power )
+{
+    power = power * API_LEDPOWER_SCALAR;
+    if ( power == EXTLED_REFRESH_PERIOD ) {
+        power -= 1;
+    }
+    // map API range to board's expected range
+    /*if ( power == 0 ) {
+        power = MOTOR_REFRESH_PERIOD - 1; // off
+    } else {
+        power = MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN - (power * API_MOTORPOWER_SCALAR);
+    }*/
     // power command can not be 0 or the refresh period. PWM register must be
     // somewhere between the two extremes
     //if ( power == 0 ) {
     //    power = 1;
     //}
     // save into structure
-    memcpy(ptrMotor, &power, 3);
+    memcpy(locUpdates.extLed, &power, 3);
 }
 
 void SetDefaults ( void )

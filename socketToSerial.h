@@ -32,8 +32,10 @@
 #define API_SERVOPOS_MAX    1500
 #define API_MOTOR_MIN       1
 #define API_MOTOR_MAX       4
-#define API_MOTORPOWER_MIN  0
+#define API_MOTORPOWER_MIN  -1000
 #define API_MOTORPOWER_MAX  1000
+#define API_LEDPOWER_MIN    0
+#define API_LEDPOWER_MAX    1000
 #define MAX_SOCKET_MSG_LEN  64
 
 // Socket definitions
@@ -74,6 +76,8 @@
 
 // 50Hz flicker
 #define EXTLED_REFRESH_PERIOD       1600000
+// EXTLED_REFRESH_PERIOD / API_LEDPOWER_MAX = 1600000/1000 = 1600
+#define API_LEDPOWER_SCALAR         1600
 
 // Delay between writes             100ms
 #define SERIAL_SLEEP_PERIOD         100000
@@ -198,7 +202,8 @@ void    BoardComm(void);
 void    HandleClient( void );
 void    InterpretSocketCommand(uint8_t *data, uint32_t length);
 void    SetServo (uint8_t servo, uint32_t position);
-void    SetMotor (uint8_t motor, uint32_t power);
+void    SetMotor (uint8_t motor, int32_t power);
+void    SetLED (uint32_t power);
 uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
 
 #endif

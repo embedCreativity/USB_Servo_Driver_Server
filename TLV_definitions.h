@@ -40,25 +40,31 @@
 /****** OUTGOING DATA - FROM DEVICE TO PC ******/
 //   Local UPDATE position data
 //     There are 13 PWM values that need to be updated, each being 24-bits
-#define TYPE_LOC_UPDATE     0xAA // position: 0
-#define LENGTH_LOC_UPDATE   39   // 1
-#define POS_EN_A            2    // 2,3,4    -> count 1,2,3
-#define POS_EN_B            5    // 5,6,7    -> 4,5,6
-#define POS_EN_C            8    // 8-10     -> 7,8,9
-#define POS_EN_D            11   // 11-13    -> 10
-#define POS_CHAN1           14   // 14-16    -> 13
-#define POS_CHAN2           17   // 17       -> 16
-#define POS_CHAN3           20   // 20       -> 19
-#define POS_CHAN4           23   // 23       -> 22
-#define POS_CHAN5           26   // 26       -> 25
-#define POS_CHAN6           29   // 29       -> 28
-#define POS_CHAN7           32   // 32       -> 31
-#define POS_CHAN8           35   // 35,36,37 -> 34
-#define POS_EXT_LED         38   // 38,39,40 -> 37,38,39
-//#define POS_CHECKSUM        41   // 41       -> 40
+#define TYPE_LOC_UPDATE     0xAA
+#define LENGTH_LOC_UPDATE   39
+#define POS_EN_A            2
+#define POS_EN_B            5
+#define POS_EN_C            8
+#define POS_EN_D            11
+#define POS_CHAN1           14
+#define POS_CHAN2           17
+#define POS_CHAN3           20
+#define POS_CHAN4           23
+#define POS_CHAN5           26
+#define POS_CHAN6           29
+#define POS_CHAN7           32
+#define POS_CHAN8           35
+#define POS_EXT_LED         38
+//#define POS_CHECKSUM        41 -> the 40th byte after type and length fields (data bytes)
+
+#define TYPE_PWR_UPDATE     0xBB
+#define LENGTH_PWR_UPDATE   ?
+#define POS_BF_PWR          2 // uint8_t bit field
+#define BS_PWR_M            0 // lsb
+#define BS_PWR_C            1 // bits 2-7 are unused
 
 // Update position data Ack
-#define TYPE_UPDATE_ACK      0xBB
+#define TYPE_UPDATE_ACK      0xCC
 #define LENGTH_UPDATE_ACK    0
 
 #endif
