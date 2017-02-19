@@ -571,6 +571,7 @@ void SetServo ( uint8_t servo, uint32_t position )
 void SetMotor ( uint8_t motor, int32_t power )
 {
     uint32_t * ptrMotor;
+    bool negative = false;
 
     switch (motor)
     {
@@ -590,16 +591,18 @@ void SetMotor ( uint8_t motor, int32_t power )
             break;
     }
     // map API range to board's expected range
+    if ( power < 0 ) {
+        power = abs(power);
+        negative = true;
+    }
     if ( power == 0 ) {
         power = MOTOR_REFRESH_PERIOD - 1; // off
     } else {
         power = MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN - (power * API_MOTORPOWER_SCALAR);
     }
-    // we set the most significant bit to indicate a backward direction
-    if ( power < 0 ) {
-        power |= (1 << 24);
-    }
     memcpy(ptrMotor, &power, 3);
+    // we set the most significant bit to indicate a backward direction
+        power |= (1 << 24);
 }
 
 void SetLED ( uint32_t power )
