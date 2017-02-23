@@ -88,6 +88,9 @@
 // Delay between writing to serial port and subsequently calling read
 #define SERIAL_READ_DELAY           1000
 
+// Delay between resetting position and turning off power
+#define RESET_DELAY                 1000000
+
 #define RESPONSE_LENGTH             2 // TODO: fix
 
 
@@ -127,7 +130,13 @@
 #define DFLT_SERVO          (SERVO_REFRESH_PERIOD - SERVO_MID_PERIOD)
 #define DFLT_EXT_LED    1
 
-typedef struct _tlvLocUpdates_T {
+typedef enum TLV_TYPE {
+    TLV_POSITION = 0,
+    TLV_POWER,
+    TLV_ERROR
+} TLV_TYPE;
+
+typedef struct _tlvPosition_T {
     uint8_t type;
     uint8_t length;
     uint8_t motorA[3];
@@ -144,7 +153,14 @@ typedef struct _tlvLocUpdates_T {
     uint8_t servo8[3];
     uint8_t extLed[3];
     uint8_t checksum;
-} __attribute__ ((__packed__)) tlvLocUpdates_T;
+} __attribute__ ((__packed__)) tlvPosition_T;
+
+typedef struct _tlvPowerManagement_T {
+    uint8_t type;
+    uint8_t length;
+    uint8_t config;
+    uint8_t checksum;
+} __attribute__ ((__packed__)) tlvPowerManagement_T;
 
 // This data structure gets written to a file and read upon starting
 // It holds all the default values for the board
@@ -197,17 +213,18 @@ typedef struct _serialRx_T {
     uint8_t data[64];
 } serialRx_T;
 
-void    SetDefaults (void);
-bool    LoadDefaults (void);
-bool    SaveDefaults (void);
-void*   Webcam(void *arg);
-void    BoardComm(void);
-void    HandleClient( void );
-void    InterpretSocketCommand(uint8_t *data, uint32_t length);
-void    SetServo (uint8_t servo, uint32_t position);
-void    SetMotor (uint8_t motor, int32_t power);
-void    SetLED (uint32_t power);
-uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
+// Function prototypes
+void        SetDefaults (void);
+bool        LoadDefaults (void);
+bool        SaveDefaults (void);
+void*       Webcam(void *arg);
+void        BoardComm( TLV_TYPE type );
+void        HandleClient( void );
+TLV_TYPE    InterpretSocketCommand(uint8_t *data, uint32_t length);
+void        SetServo (uint8_t servo, uint32_t position);
+void        SetMotor (uint8_t motor, int32_t power);
+void        SetLED (uint32_t power);
+uint8_t     ComputeChecksum(uint8_t *input, uint32_t length);
 
 #endif
 

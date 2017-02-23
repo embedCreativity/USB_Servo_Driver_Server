@@ -58,7 +58,7 @@
 //#define POS_CHECKSUM        41 -> the 40th byte after type and length fields (data bytes)
 
 #define TYPE_PWR_UPDATE     0xBB
-#define LENGTH_PWR_UPDATE   ?
+#define LENGTH_PWR_UPDATE   1
 #define POS_BF_PWR          2 // uint8_t bit field
 #define BS_PWR_M            0 // lsb
 #define BS_PWR_C            1 // bits 2-7 are unused

@@ -61,10 +61,11 @@
 
 //--- TODO: protect all instances with pthread mutexes
 // This is what we send to the board
-tlvLocUpdates_T locUpdates;
+tlvPosition_T cfgPosition;
+tlvPowerManagement_T cfgPower;
 
 // structure of saved default values
-savedDefaults_T locDefaults;
+savedDefaults_T cfgDefaultPosition;
 
 // struct for holding data,len returned from SerialRead
 serialRx_T serialRxData;
@@ -249,8 +250,10 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    locUpdates.type = TYPE_LOC_UPDATE;
-    locUpdates.length = LENGTH_LOC_UPDATE;
+    cfgPosition.type = TYPE_LOC_UPDATE;
+    cfgPosition.length = LENGTH_LOC_UPDATE;
+    cfgPower.type = TYPE_PWR_UPDATE;
+    cfgPower.length = LENGTH_PWR_UPDATE;
 
     /* Run until cancelled */
     while (true) {
@@ -296,6 +299,7 @@ void HandleClient( void )
 {
     uint8_t socketRx[BUFFSIZE];
     int32_t cntSocketRx;
+    TLV_TYPE type;
 
     #if defined(WEBCAM)
     // Start webcam thread
@@ -327,15 +331,20 @@ void HandleClient( void )
     while(true) {
         cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
         if ( cntSocketRx > 0 ) {
-            InterpretSocketCommand(socketRx, cntSocketRx);
-            BoardComm(); // transmit the packet to the board
+            type = InterpretSocketCommand(socketRx, cntSocketRx);
+            // transmit the packet to the board
+            BoardComm(type);
             // Push serial response back to client over the socket
             socketIntf.Write(serialRxData.data, serialRxData.len);
         } else {
             // restore defaults
             SetDefaults();
             syslog(LOG_INFO, "Client disconnected - resetting board\n");
-            BoardComm(); // restore back to defaults
+            // reset position data
+            BoardComm(TLV_POSITION);
+            usleep(RESET_DELAY);
+            // remove power
+            BoardComm(TLV_POWER);
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             SerialClose();
@@ -345,10 +354,26 @@ void HandleClient( void )
     /********************************************************************/
 } //end HandleClient()
 
-void BoardComm ( void )
+void BoardComm ( TLV_TYPE type )
 {
+    uint8_t *data;
+    uint8_t length;
+
+    switch (type)
+    {
+        case TLV_POSITION:
+            data = (uint8_t*)&cfgPosition;
+            length = (uint8_t)sizeof(tlvPosition_T);
+            break;
+        case TLV_POWER:
+            data = (uint8_t*)&cfgPower;
+            length = sizeof(tlvPowerManagement_T);
+            break;
+        default:
+            return;
+    }
     // Send the board the data that we've been updating with interpreted socket data
-    SerialWriteNBytes((uint8_t*)&locUpdates, sizeof(tlvLocUpdates_T));
+    SerialWriteNBytes(data, length);
 
     // Give board a moment to respond
     usleep(SERIAL_READ_DELAY);
@@ -357,7 +382,7 @@ void BoardComm ( void )
     serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)));
 }
 
-void InterpretSocketCommand(uint8_t *data, uint32_t length)
+TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
     char *strInput;
     char *ptr;
@@ -485,47 +510,47 @@ void InterpretSocketCommand(uint8_t *data, uint32_t length)
         }
     } else if ( strcasestr(strInput, "Go") != NULL ) {
         syslog(LOG_INFO, "Go!");
-        memcpy(locUpdates.motorA, locDefaults.motorAGo, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBGo, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCGo, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDGo, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAGo, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBGo, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCGo, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDGo, 3);
     } else if ( strcasestr(strInput, "Stop") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorAStop, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBStop, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCStop, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDStop, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAStop, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBStop, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCStop, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDStop, 3);
     } else if ( strcasestr(strInput, "Back") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorABack, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBBack, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCBack, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDBack, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorABack, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBBack, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCBack, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDBack, 3);
     } else if ( strcasestr(strInput, "PivotRight") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorAPivotRight, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBPivotRight, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCPivotRight, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDPivotRight, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAPivotRight, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBPivotRight, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCPivotRight, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDPivotRight, 3);
     } else if ( strcasestr(strInput, "PivotLeft") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorAPivotLeft, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBPivotLeft, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCPivotLeft, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDPivotLeft, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAPivotLeft, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBPivotLeft, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCPivotLeft, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDPivotLeft, 3);
     } else if ( strcasestr(strInput, "TurnRight") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorATurnRight, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBTurnRight, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCTurnRight, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDTurnRight, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorATurnRight, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBTurnRight, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCTurnRight, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDTurnRight, 3);
     } else if ( strcasestr(strInput, "TurnLeft") != NULL ) {
-        memcpy(locUpdates.motorA, locDefaults.motorATurnLeft, 3);
-        memcpy(locUpdates.motorB, locDefaults.motorBTurnLeft, 3);
-        memcpy(locUpdates.motorC, locDefaults.motorCTurnLeft, 3);
-        memcpy(locUpdates.motorD, locDefaults.motorDTurnLeft, 3);
+        memcpy(cfgPosition.motorA, cfgDefaultPosition.motorATurnLeft, 3);
+        memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBTurnLeft, 3);
+        memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCTurnLeft, 3);
+        memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDTurnLeft, 3);
     } else {
 
     }
 
     // Update checksum
-    locUpdates.checksum = ComputeChecksum((uint8_t*)(&locUpdates.motorA),
-        locUpdates.length);
+    cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
+        cfgPosition.length);
 }
 
 void SetServo ( uint8_t servo, uint32_t position )
@@ -536,28 +561,28 @@ void SetServo ( uint8_t servo, uint32_t position )
     switch (servo)
     {
         case 1:
-            ptrMotor = (uint32_t*)&locUpdates.servo1;
+            ptrMotor = (uint32_t*)&cfgPosition.servo1;
             break;
         case 2:
-            ptrMotor = (uint32_t*)&locUpdates.servo2;
+            ptrMotor = (uint32_t*)&cfgPosition.servo2;
             break;
         case 3:
-            ptrMotor = (uint32_t*)&locUpdates.servo3;
+            ptrMotor = (uint32_t*)&cfgPosition.servo3;
             break;
         case 4:
-            ptrMotor = (uint32_t*)&locUpdates.servo4;
+            ptrMotor = (uint32_t*)&cfgPosition.servo4;
             break;
         case 5:
-            ptrMotor = (uint32_t*)&locUpdates.servo5;
+            ptrMotor = (uint32_t*)&cfgPosition.servo5;
             break;
         case 6:
-            ptrMotor = (uint32_t*)&locUpdates.servo6;
+            ptrMotor = (uint32_t*)&cfgPosition.servo6;
             break;
         case 7:
-            ptrMotor = (uint32_t*)&locUpdates.servo7;
+            ptrMotor = (uint32_t*)&cfgPosition.servo7;
             break;
         case 8:
-            ptrMotor = (uint32_t*)&locUpdates.servo8;
+            ptrMotor = (uint32_t*)&cfgPosition.servo8;
             break;
         default: // won't happen
             break;
@@ -577,16 +602,16 @@ void SetMotor ( uint8_t motor, int32_t power )
     switch (motor)
     {
         case 1:
-            ptrMotor = (uint32_t*)&locUpdates.motorA;
+            ptrMotor = (uint32_t*)&cfgPosition.motorA;
             break;
         case 2:
-            ptrMotor = (uint32_t*)&locUpdates.motorB;
+            ptrMotor = (uint32_t*)&cfgPosition.motorB;
             break;
         case 3:
-            ptrMotor = (uint32_t*)&locUpdates.motorC;
+            ptrMotor = (uint32_t*)&cfgPosition.motorC;
             break;
         case 4:
-            ptrMotor = (uint32_t*)&locUpdates.motorD;
+            ptrMotor = (uint32_t*)&cfgPosition.motorD;
             break;
         default: // won't happen
             break;
@@ -628,26 +653,30 @@ void SetLED ( uint32_t power )
     //    power = 1;
     //}
     // save into structure
-    memcpy(locUpdates.extLed, &power, 3);
+    memcpy(cfgPosition.extLed, &power, 3);
 }
 
 void SetDefaults ( void )
 {
-    memcpy(locUpdates.motorA, locDefaults.motorADefault, 3);
-    memcpy(locUpdates.motorB, locDefaults.motorBDefault, 3);
-    memcpy(locUpdates.motorC, locDefaults.motorCDefault, 3);
-    memcpy(locUpdates.motorD, locDefaults.motorDDefault, 3);
-    memcpy(locUpdates.servo1, locDefaults.servo1Default, 3);
-    memcpy(locUpdates.servo2, locDefaults.servo2Default, 3);
-    memcpy(locUpdates.servo3, locDefaults.servo3Default, 3);
-    memcpy(locUpdates.servo4, locDefaults.servo4Default, 3);
-    memcpy(locUpdates.servo5, locDefaults.servo5Default, 3);
-    memcpy(locUpdates.servo6, locDefaults.servo6Default, 3);
-    memcpy(locUpdates.servo7, locDefaults.servo7Default, 3);
-    memcpy(locUpdates.servo8, locDefaults.servo8Default, 3);
-    memcpy(locUpdates.extLed, locDefaults.extLedDefault, 3);
-    locUpdates.checksum = ComputeChecksum((uint8_t*)(&locUpdates.motorA),
-        locUpdates.length);
+    memcpy(cfgPosition.motorA, cfgDefaultPosition.motorADefault, 3);
+    memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBDefault, 3);
+    memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCDefault, 3);
+    memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDDefault, 3);
+    memcpy(cfgPosition.servo1, cfgDefaultPosition.servo1Default, 3);
+    memcpy(cfgPosition.servo2, cfgDefaultPosition.servo2Default, 3);
+    memcpy(cfgPosition.servo3, cfgDefaultPosition.servo3Default, 3);
+    memcpy(cfgPosition.servo4, cfgDefaultPosition.servo4Default, 3);
+    memcpy(cfgPosition.servo5, cfgDefaultPosition.servo5Default, 3);
+    memcpy(cfgPosition.servo6, cfgDefaultPosition.servo6Default, 3);
+    memcpy(cfgPosition.servo7, cfgDefaultPosition.servo7Default, 3);
+    memcpy(cfgPosition.servo8, cfgDefaultPosition.servo8Default, 3);
+    memcpy(cfgPosition.extLed, cfgDefaultPosition.extLedDefault, 3);
+    cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
+        cfgPosition.length);
+
+    cfgPower.config = (1 << BS_PWR_C); // Turn on controller, keep motors off
+    cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
+        cfgPower.length);
 }
 
 bool LoadDefaults ( void )
@@ -655,9 +684,9 @@ bool LoadDefaults ( void )
     int num;
     FILE *fd;
     if ( (fd = fopen(DEFAULT_FILE, "r") ) == NULL ) return false;
-    num = fread(&locDefaults, 1, sizeof(locDefaults), fd);
+    num = fread(&cfgDefaultPosition, 1, sizeof(cfgDefaultPosition), fd);
     fclose(fd);
-    if(num != sizeof(locDefaults)) return false;
+    if(num != sizeof(cfgDefaultPosition)) return false;
 
     return true;
 }
@@ -667,9 +696,9 @@ bool SaveDefaults ( void )
     int num;
     FILE *fd;
     if ( (fd = fopen(DEFAULT_FILE, "w") ) == NULL ) return false;
-    num = fwrite(&locDefaults, 1, sizeof(locDefaults), fd);
+    num = fwrite(&cfgDefaultPosition, 1, sizeof(cfgDefaultPosition), fd);
     fclose(fd);
-    if(num != sizeof(locDefaults)) return false;
+    if(num != sizeof(cfgDefaultPosition)) return false;
 
     return true;
 }
