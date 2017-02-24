@@ -50,6 +50,7 @@
 //seperate thread that handles incoming serial communications
 #include "SerialControl.h" /* my Serial comm functions */
 #include "socketToSerial.h"
+#include "TLV_definitions.h"
 
 /* ------------------------------------------------------------ */
 /*              Local Type Definitions                          */
@@ -386,6 +387,10 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
 {
     char *strInput;
     char *ptr;
+    TLV_TYPE type;
+
+    // init to invalid
+    type = TLV_ERROR;
 
     // sanity check
     if ( data == NULL || length > MAX_SOCKET_MSG_LEN ) {
@@ -396,7 +401,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
             syslog(LOG_WARNING, "ISC()-->length = %d (max is %d)", length,\
               MAX_SOCKET_MSG_LEN);
         }
-        return;
+        return TLV_ERROR;
     }
     // preserve original string and null terminate
     strInput = (char*)malloc(length+1);
@@ -424,6 +429,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
             // Error
             syslog(LOG_PERROR, "FORMAT ERROR [setServo] \
               --> usage: setServo [servo] [position]. Rec'd: \"%s\"", ptr);
+            return TLV_ERROR;
         } else {
             bool pass = true;
             // Good - now sanity check
@@ -433,6 +439,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
                   [%d to %d]. Rec'd: %d", API_SERVO_MIN, API_SERVO_MAX,
                   servo);
                 pass = false;
+                return TLV_ERROR;
             }
             if ( (API_SERVOPOS_MIN > position) || (position > API_SERVOPOS_MAX) )
             {
@@ -440,12 +447,14 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
                   [%d to %d]. Rec'd: %d", API_SERVOPOS_MIN, API_SERVOPOS_MAX,
                   position);
                 pass = false;
+                return TLV_ERROR;
             }
             if ( pass )
             { // Sanity check - passed
                 SetServo (servo, position);
             }
         }
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "setMotor") != NULL ) {
         int motor;
         int power;
@@ -459,6 +468,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
             // Error
             syslog(LOG_PERROR, "FORMAT ERROR [setMotor] \
               --> usage: setMotor [motor] [power]. Rec'd: \"%s\"", ptr);
+            return TLV_ERROR;
         } else {
             bool pass = true;
             // Good - now sanity check
@@ -468,6 +478,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
                   [%d to %d]. Rec'd: %d", API_MOTOR_MIN, API_MOTOR_MAX,
                   motor);
                 pass = false;
+                return TLV_ERROR;
             }
             if ( (API_MOTORPOWER_MIN > power) || (power > API_MOTORPOWER_MAX) )
             {
@@ -475,12 +486,14 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
                   [%d to %d]. Rec'd: %d", API_MOTORPOWER_MIN, API_MOTORPOWER_MAX,
                   power);
                 pass = false;
+                return TLV_ERROR;
             }
             if ( pass )
             { // Sanity check - passed
                 SetMotor(motor, power);
             }
         }
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "setLED") != NULL ) {
         int power;
         int ret;
@@ -493,6 +506,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
             // Error
             syslog(LOG_PERROR, "FORMAT ERROR [setLED] \
               --> usage: setLED [power]. Rec'd: \"%s\"", ptr);
+            return TLV_ERROR;
         } else {
             bool pass = true;
             // Good - now sanity check
@@ -502,55 +516,82 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
                   [%d to %d]. Rec'd: %d", API_LEDPOWER_MIN, API_LEDPOWER_MAX,
                   power);
                 pass = false;
+                return TLV_ERROR;
             }
             if ( pass )
             { // Sanity check - passed
                 SetLED(power);
             }
         }
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "Go") != NULL ) {
         syslog(LOG_INFO, "Go!");
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAGo, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBGo, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCGo, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDGo, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "Stop") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAStop, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBStop, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCStop, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDStop, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "Back") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorABack, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBBack, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCBack, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDBack, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "PivotRight") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAPivotRight, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBPivotRight, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCPivotRight, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDPivotRight, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "PivotLeft") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorAPivotLeft, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBPivotLeft, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCPivotLeft, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDPivotLeft, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "TurnRight") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorATurnRight, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBTurnRight, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCTurnRight, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDTurnRight, 3);
+        type = TLV_POSITION;
     } else if ( strcasestr(strInput, "TurnLeft") != NULL ) {
         memcpy(cfgPosition.motorA, cfgDefaultPosition.motorATurnLeft, 3);
         memcpy(cfgPosition.motorB, cfgDefaultPosition.motorBTurnLeft, 3);
         memcpy(cfgPosition.motorC, cfgDefaultPosition.motorCTurnLeft, 3);
         memcpy(cfgPosition.motorD, cfgDefaultPosition.motorDTurnLeft, 3);
+        type = TLV_POSITION;
+    } else if ( strcasestr(strInput, "CON") != NULL ) {
+        cfgPower.config |= (1 << BS_PWR_C);
+        type = TLV_POWER;
+    } else if ( strcasestr(strInput, "COFF") != NULL ) {
+        cfgPower.config &= ~(1 << BS_PWR_C);
+        type = TLV_POWER;
+    } else if ( strcasestr(strInput, "MON") != NULL ) {
+        cfgPower.config |= (1 << BS_PWR_M);
+        type = TLV_POWER;
+    } else if ( strcasestr(strInput, "MOFF") != NULL ) {
+        cfgPower.config &= ~(1 << BS_PWR_M);
+        type = TLV_POWER;
     } else {
-
+        type = TLV_ERROR;
     }
 
     // Update checksum
-    cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
-        cfgPosition.length);
+    if ( type == TLV_POSITION ) {
+        cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
+            cfgPosition.length);
+    } else if ( type == TLV_POWER ) {
+        cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
+            cfgPower.length);
+    }
+    return type;
 }
 
 void SetServo ( uint8_t servo, uint32_t position )
