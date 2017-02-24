@@ -588,7 +588,7 @@ TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)
         cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
             cfgPosition.length);
     } else if ( type == TLV_POWER ) {
-        cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
+        cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
             cfgPower.length);
     }
     return type;
