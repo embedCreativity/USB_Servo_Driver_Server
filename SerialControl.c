@@ -341,8 +341,6 @@ bool SerialInit(char *szDevice, int baudRate) {
         printf("SerialInit Error - unable to set options!\n");
         return false;
     }
-
-
     return true;
 }
 

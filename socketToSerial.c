@@ -336,6 +336,7 @@ void HandleClient( void )
             // transmit the packet to the board
             BoardComm(type);
             // Push serial response back to client over the socket
+            printf("rx[%d]\n", serialRxData.len);
             socketIntf.Write(serialRxData.data, serialRxData.len);
         } else {
             // restore defaults
@@ -380,6 +381,10 @@ void BoardComm ( TLV_TYPE type )
     usleep(SERIAL_READ_DELAY);
 
     // Get response from serial ( should be ADC battery voltage reading )
+    // TODO: Write a better read algorithm that will keep calling until
+    //   everything we want arrives. This is the cause of my hangup. It returns
+    //   0 when data hasn't been received yet and fails to send this data to the
+    //   connected client
     serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)));
 }
 
