@@ -94,7 +94,7 @@
 #define RESPONSE_LENGTH             2 // TODO: fix
 
 // Serial comm timeout
-#define SERIAL_TIMEOUT              200 // milliseconds
+#define SERIAL_TIMEOUT              750 // milliseconds
 
 // Default tlv values
 #define DFLT_MOTOR          (MOTOR_REFRESH_PERIOD-1)
@@ -180,7 +180,7 @@ typedef struct _savedDefaults_T {
 } __attribute__ ((__packed__)) savedDefaults_T;
 
 typedef struct _serialRx_T {
-    uint8_t len;
+    int     len; // must be able to support error codes
     uint8_t data[64];
 } serialRx_T;
 

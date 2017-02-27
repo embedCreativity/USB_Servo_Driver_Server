@@ -345,7 +345,6 @@ void HandleClient( void )
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "BoardComm Error");
             }
             // Push serial response back to client over the socket
-            printf("sending->%s\n", socketBuf);
             socketIntf.Write(socketBuf, strlen((char*)socketBuf));
         } else {
             // restore defaults
@@ -412,7 +411,6 @@ bool SerialGetResponse( uint32_t timeout )
     while ( true ) {
         i = 0; // reset read buffer pointer
         // read enough data to fill tlv struct
-        printf("Calling SerialRead\n");
         serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)),
             (uint32_t)(sizeof(tlvAck_T) - offset), timeout);
         if ( serialRxData.len == SERIAL_ERROR_CODE ) {
@@ -422,7 +420,6 @@ bool SerialGetResponse( uint32_t timeout )
             printf("Serial Timeout\n");
             return false;
         } else if ( serialRxData.len == 0 ) { // just start over...
-            printf("error B\n");
             continue;
         }
 
@@ -436,7 +433,6 @@ bool SerialGetResponse( uint32_t timeout )
                 }
             }
             if ( POS_TLV_TYPE == offset ) { // didn't find type code - fail
-                printf("error C\n");
                 continue;
             }
         }
@@ -448,11 +444,9 @@ bool SerialGetResponse( uint32_t timeout )
                     offset = POS_STATUS; // mark next thing to look for
                 } else { // fail - corrupt data
                     offset = 0;
-                    printf("error D\n");
                     continue;
                 }
             } else { // no more data, go around
-                printf("error E\n");
                 continue;
             }
         }
@@ -474,20 +468,14 @@ bool SerialGetResponse( uint32_t timeout )
                   tlvAck.length) )
                 { // fail - corrupt data
                     offset = 0;
-                    printf("error F\n");
-                    printf("checksum should be [0x%x], rec'd [0x%x] i=%d, len=%d\n",
-                     serialRxData.data[i], ComputeChecksum(&tlvAck.status,
-                       tlvAck.length), i, tlvAck.length);
                     continue;
                 }
                 else { // Checksum verified!
                     bBoardStatus = tlvAck.status;
                     shortADCResult = tlvAck.adcResult;
-                    printf("GetResponse is good\n");
                     return true;
                 }
             } else { // no more data; go around
-                printf("error G\n");
                 continue;
             }
         }

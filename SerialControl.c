@@ -168,17 +168,14 @@ int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
     ptr = result;
     totalBytesRead = 0;
 
-    //printf("SerialRead(%d, %d)\n", len, timeOutMs);
-
     // Get timestamp starting now
     gettimeofday(&tvBegin, NULL);
 
     do {
         // call serial read function
-        //printf("Calling OS read()\n");
         bytesRead = read(fd, ptr, len);
+
         totalBytesRead += bytesRead;
-        //printf("r[%d], t[%d]\n", bytesRead, totalBytesRead);
         if (bytesRead < 0) {
             if (errno == EAGAIN) {
                 printf("SERIAL EAGAIN ERROR\n");
@@ -195,10 +192,9 @@ int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
             }
             if ( bytesRead == 0 ) {
                 usleep(1000); // sleep 1ms before calling read again
-                continue;
             }
             if ( len < bytesRead ) {
-                //printf("ERROR: Read too much data!\n");
+                printf("ERROR: Read too much data!\n");
                 return SERIAL_ERROR_CODE;
             } else {
                 ptr += bytesRead; // advance pointer
@@ -211,7 +207,7 @@ int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
         if ( GetTimeDiff(&tvDiff, &tvEnd, &tvBegin) ) {
             elapsedMs = (1000*tvDiff.tv_sec + (tvDiff.tv_usec/1000));
         } else {
-            //printf("ERROR: elapsed time error\n");
+            printf("ERROR: elapsed time error\n");
             return SERIAL_ERROR_CODE;
         }
     } while ( (elapsedMs < timeOutMs) && (len > 0) );
@@ -219,7 +215,6 @@ int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
     if ( elapsedMs >= timeOutMs ) {
         return SERIAL_TIMEOUT_CODE;
     }
-
     return totalBytesRead;
 }
 
