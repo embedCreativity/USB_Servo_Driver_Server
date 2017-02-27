@@ -70,6 +70,10 @@ savedDefaults_T cfgDefaultPosition;
 
 // struct for holding data,len returned from SerialRead
 serialRx_T serialRxData;
+tlvAck_T tlvAck = { .type = TYPE_ACK, .length = LENGTH_ACK, .status = 0,
+  .adcResult = 0, .checksum = 0 };
+uint16_t shortADCResult;
+uint8_t bBoardStatus;
 
 // handles to the threads
 pthread_t threadWebcam;
@@ -298,7 +302,7 @@ int main(int argc, char *argv[])
 */
 void HandleClient( void )
 {
-    uint8_t socketRx[BUFFSIZE];
+    uint8_t socketBuf[SOCK_BUF_SIZE];
     int32_t cntSocketRx;
     TLV_TYPE type;
 
@@ -330,14 +334,19 @@ void HandleClient( void )
 
     /**************** Main TCP linked section **************************/
     while(true) {
-        cntSocketRx = socketIntf.Read(socketRx, BUFFSIZE);
+        cntSocketRx = socketIntf.Read(socketBuf, SOCK_BUF_SIZE);
         if ( cntSocketRx > 0 ) {
-            type = InterpretSocketCommand(socketRx, cntSocketRx);
+            type = InterpretSocketCommand(socketBuf, cntSocketRx);
             // transmit the packet to the board
-            BoardComm(type);
+            if ( BoardComm(type) ) {
+                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "status[0x%x], adc[0x%x]",
+                  bBoardStatus, shortADCResult);
+            } else {
+                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "BoardComm Error");
+            }
             // Push serial response back to client over the socket
-            printf("rx[%d]\n", serialRxData.len);
-            socketIntf.Write(serialRxData.data, serialRxData.len);
+            printf("sending->%s\n", socketBuf);
+            socketIntf.Write(socketBuf, strlen((char*)socketBuf));
         } else {
             // restore defaults
             SetDefaults();
@@ -356,7 +365,7 @@ void HandleClient( void )
     /********************************************************************/
 } //end HandleClient()
 
-void BoardComm ( TLV_TYPE type )
+bool BoardComm ( TLV_TYPE type )
 {
     uint8_t *data;
     uint8_t length;
@@ -372,10 +381,12 @@ void BoardComm ( TLV_TYPE type )
             length = sizeof(tlvPowerManagement_T);
             break;
         default:
-            return;
+            return false;
     }
     // Send the board the data that we've been updating with interpreted socket data
-    SerialWriteNBytes(data, length);
+    if ( false == SerialWriteNBytes(data, length) ) {
+        return false;
+    }
 
     // Give board a moment to respond
     usleep(SERIAL_READ_DELAY);
@@ -385,7 +396,102 @@ void BoardComm ( TLV_TYPE type )
     //   everything we want arrives. This is the cause of my hangup. It returns
     //   0 when data hasn't been received yet and fails to send this data to the
     //   connected client
-    serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)));
+    return SerialGetResponse(SERIAL_TIMEOUT);
+}
+
+bool SerialGetResponse( uint32_t timeout )
+{
+    uint8_t offset; // offset into compiled buffer
+    uint8_t i; // pointer in read data
+    uint8_t *ptr;
+
+    // init locals
+    offset = POS_TLV_TYPE;
+
+    // Compile tlv message
+    while ( true ) {
+        i = 0; // reset read buffer pointer
+        // read enough data to fill tlv struct
+        printf("Calling SerialRead\n");
+        serialRxData.len = SerialRead((uint8_t*)(&(serialRxData.data)),
+            (uint32_t)(sizeof(tlvAck_T) - offset), timeout);
+        if ( serialRxData.len == SERIAL_ERROR_CODE ) {
+            printf("Serial Error\n");
+            return false;
+        } else if ( serialRxData.len == SERIAL_TIMEOUT_CODE ) {
+            printf("Serial Timeout\n");
+            return false;
+        } else if ( serialRxData.len == 0 ) { // just start over...
+            printf("error B\n");
+            continue;
+        }
+
+        if ( POS_TLV_TYPE == offset ) { // look for type code
+            // look for type code thowing away garbage before it
+            for ( ; (i < serialRxData.len); i++ ) {
+                if ( serialRxData.data[i] == TYPE_ACK ) {
+                    i += 1;
+                    offset = POS_TLV_LENGTH; // mark next thing to look for
+                    break;
+                }
+            }
+            if ( POS_TLV_TYPE == offset ) { // didn't find type code - fail
+                printf("error C\n");
+                continue;
+            }
+        }
+        // Verify length
+        if ( POS_TLV_LENGTH == offset ) {
+            if ( i < serialRxData.len ) {
+                if ( LENGTH_ACK == serialRxData.data[i] ) {
+                    i += 1; // increment pointer in read buffer
+                    offset = POS_STATUS; // mark next thing to look for
+                } else { // fail - corrupt data
+                    offset = 0;
+                    printf("error D\n");
+                    continue;
+                }
+            } else { // no more data, go around
+                printf("error E\n");
+                continue;
+            }
+        }
+
+        // Data bytes
+        if ( (POS_STATUS <= offset ) && (offset < (LENGTH_ACK + 2)) )
+        {
+            ptr = (uint8_t*)&tlvAck;
+            for ( ; (i < serialRxData.len) && (offset < LENGTH_ACK + 2); i++ ) {
+                ptr[offset] = serialRxData.data[i]; // copy byte into struct
+                offset += 1; // increment pointer into struct
+            }
+        }
+
+        // checksum byte
+        if ( (LENGTH_ACK + 2 ) == offset ) {
+            if ( i < serialRxData.len ) {
+                if ( serialRxData.data[i] != ComputeChecksum(&tlvAck.status,
+                  tlvAck.length) )
+                { // fail - corrupt data
+                    offset = 0;
+                    printf("error F\n");
+                    printf("checksum should be [0x%x], rec'd [0x%x] i=%d, len=%d\n",
+                     serialRxData.data[i], ComputeChecksum(&tlvAck.status,
+                       tlvAck.length), i, tlvAck.length);
+                    continue;
+                }
+                else { // Checksum verified!
+                    bBoardStatus = tlvAck.status;
+                    shortADCResult = tlvAck.adcResult;
+                    printf("GetResponse is good\n");
+                    return true;
+                }
+            } else { // no more data; go around
+                printf("error G\n");
+                continue;
+            }
+        }
+    }
 }
 
 TLV_TYPE InterpretSocketCommand(uint8_t *data, uint32_t length)

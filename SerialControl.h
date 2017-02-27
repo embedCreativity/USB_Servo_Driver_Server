@@ -4,7 +4,7 @@
 /*                                                                      */
 /************************************************************************/
 /*  Author:     Mark Taylor                                             */
-/*  Copyright 2009, Digilent, Inc.                                      */
+/*  Copyright 2017, Mark Taylor                                         */
 /************************************************************************/
 /*  File Description:                                                   */
 /*                                                                      */
@@ -15,6 +15,7 @@
 /*  Revision History:                                                   */
 /*                                                                      */
 /*  02/02/2009(MarkT): created                                          */
+/*  02/24/2017(MarkT): added support for timeout in SerialRead()        */
 /*                                                                      */
 /************************************************************************/
 
@@ -30,6 +31,15 @@
 #include <errno.h>   /* Error number definitions */
 #include <termios.h> /* POSIX terminal control definitions */
 #include <stdbool.h>
+#include <sys/time.h>
+#include <time.h>
+
+
+/* ------------------------------------------------------------ */
+/*                  Definitions                                 */
+/* ------------------------------------------------------------ */
+#define SERIAL_ERROR_CODE   -1
+#define SERIAL_TIMEOUT_CODE -2
 
 /* ------------------------------------------------------------ */
 /*                  General Type Declarations                   */
@@ -51,13 +61,14 @@
 /*                  Function Prototypes                         */
 /* ------------------------------------------------------------ */
 
-int     SerialWriteNBytes(uint8_t *rgbChars, int n);
-int     SerialWriteByte(uint8_t *pByte);
-int     SerialRead(uint8_t *result);
+bool    SerialWriteNBytes(uint8_t *rgbChars, int n);
+bool    SerialWriteByte(uint8_t *pByte);
+int     SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs);
 int     SerialGetBaud(void);
 bool    SerialInit(char *szDevice, int baudRate);
 void    SerialClose(void);
-
+bool    GetTimeDiff ( struct timeval *result,
+            struct timeval *t2, struct timeval *t1 );
 /* ------------------------------------------------------------ */
 
 #endif

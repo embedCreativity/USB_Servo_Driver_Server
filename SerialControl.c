@@ -4,7 +4,7 @@
 /*                                                                      */
 /************************************************************************/
 /*                                                                      */
-/*  Copyright 2009, Digilent Inc.                                       */
+/*  Copyright 2009, Mark Taylor                                         */
 /*                                                                      */
 /************************************************************************/
 /*  Module Description:                                                 */
@@ -24,6 +24,7 @@
 /*                      removed xuart stuff as I'm not likely going to  */
 /*                      to use anything from Technologic Systems ever   */
 /*                      again.                                          */
+/*  02/24/2017 (MarkT): Adding timeout capability to SerialRead()       */
 /*                                                                      */
 /************************************************************************/
 
@@ -81,7 +82,7 @@ int fd;
 **      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 */
-int SerialWriteNBytes(uint8_t *rgbChars, int n) {
+bool SerialWriteNBytes(uint8_t *rgbChars, int n) {
 
     int i;
 
@@ -89,14 +90,14 @@ int SerialWriteNBytes(uint8_t *rgbChars, int n) {
         //printf("SerialWriteNBytes(n=%d)\n", n);
         int n = write(fd, rgbChars, 1);
         if (n < 0) {
-            printf("Write Error : %d,  %s\n", errno, strerror(errno));
-            printf("0x%x ", *rgbChars);
-            return 0;
+            //printf("Write Error : %d,  %s\n", errno, strerror(errno));
+            //printf("0x%x ", *rgbChars);
+            return false;
         }
         //printf("0x%x ", *rgbChars);
         rgbChars++; //increment pointer
     }
-    return 1;
+    return true;
 }
 
 /* ------------------------------------------------------------ */
@@ -121,18 +122,16 @@ int SerialWriteNBytes(uint8_t *rgbChars, int n) {
 **      the fd must be the assigned file descriptor for the serial port.
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 */
-int SerialWriteByte(uint8_t *pByte) {
+bool SerialWriteByte(uint8_t *pByte) {
 
     int n = write(fd, pByte, 1);
     if (n < 0) {
-        printf("Write Error : %d,  %s\n", errno, strerror(errno));
-        printf("0x%x ", *pByte);
-        return 0;
+        //printf("Write Error : %d,  %s\n", errno, strerror(errno));
+        //printf("0x%x ", *pByte);
+        return false;
     }
 
-//debug printf("0x%x ", *pByte);
-
-    return 1;
+    return true;
 }
 
 /* ------------------------------------------------------------ */
@@ -158,22 +157,70 @@ int SerialWriteByte(uint8_t *pByte) {
 **      Please use the SerialInit(char *szDevice) prior to using this function.
 **      Places the read NULL terminated string into *result.
 */
-int SerialRead(uint8_t *result) {
+int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
     int bytesRead;
+    int totalBytesRead;
+    struct timeval tvBegin, tvEnd, tvDiff;
+    long int elapsedMs;
+    uint8_t *ptr;
 
-    bytesRead = read(fd, result, 256);
+    // init locals
+    ptr = result;
+    totalBytesRead = 0;
 
-    if (bytesRead < 0) {
-        if (errno == EAGAIN) {
-            printf("SERIAL EAGAIN ERROR\n");
-            return -1;
+    //printf("SerialRead(%d, %d)\n", len, timeOutMs);
+
+    // Get timestamp starting now
+    gettimeofday(&tvBegin, NULL);
+
+    do {
+        // call serial read function
+        //printf("Calling OS read()\n");
+        bytesRead = read(fd, ptr, len);
+        totalBytesRead += bytesRead;
+        //printf("r[%d], t[%d]\n", bytesRead, totalBytesRead);
+        if (bytesRead < 0) {
+            if (errno == EAGAIN) {
+                printf("SERIAL EAGAIN ERROR\n");
+                return SERIAL_ERROR_CODE;
+            } else {
+                printf("SERIAL read error %d %s\n", errno, strerror(errno));
+                return SERIAL_ERROR_CODE;
+            }
         } else {
-            printf("SERIAL read error %d %s\n", errno, strerror(errno));
-            return -1;
+            // caller does not have a minimum requested data length. Return
+            // what we've got now
+            if ( len == 0 ) {
+                return bytesRead;
+            }
+            if ( bytesRead == 0 ) {
+                usleep(1000); // sleep 1ms before calling read again
+                continue;
+            }
+            if ( len < bytesRead ) {
+                //printf("ERROR: Read too much data!\n");
+                return SERIAL_ERROR_CODE;
+            } else {
+                ptr += bytesRead; // advance pointer
+                len -= bytesRead; // decrement desired count of future bytes
+            }
         }
+        // grab timestamp
+        gettimeofday(&tvEnd, NULL);
+        // calculate elapsed time
+        if ( GetTimeDiff(&tvDiff, &tvEnd, &tvBegin) ) {
+            elapsedMs = (1000*tvDiff.tv_sec + (tvDiff.tv_usec/1000));
+        } else {
+            //printf("ERROR: elapsed time error\n");
+            return SERIAL_ERROR_CODE;
+        }
+    } while ( (elapsedMs < timeOutMs) && (len > 0) );
+
+    if ( elapsedMs >= timeOutMs ) {
+        return SERIAL_TIMEOUT_CODE;
     }
 
-    return bytesRead;
+    return totalBytesRead;
 }
 
 /* ------------------------------------------------------------ */
@@ -332,7 +379,7 @@ bool SerialInit(char *szDevice, int baudRate) {
     options.c_lflag = 0; // no signalling chars, no echo, no canonical processing
     options.c_oflag = 0; // no remapping, no delays
     options.c_cc[VMIN] = 0; // read doesn't block
-    options.c_cc[VTIME] = 5; // 0.5 second read timeout
+    options.c_cc[VTIME] = 0; //polling mode. No timeout, return what's there now
     options.c_iflag &= ~(IXON | IXOFF | IXANY); // no xon/xoff ctrl
     options.c_cflag &= ~CRTSCTS;
 
@@ -374,5 +421,29 @@ void SerialClose(void) {
         printf("Serial connection closed.\n");
     }
 }
+
+// Helper functions for enabling a timeout
+bool GetTimeDiff ( struct timeval *result, struct timeval *t2, struct timeval *t1 )
+{
+    long int diff;
+    long int elapsedMs;
+
+    diff = (t2->tv_usec + (1000000 * t2->tv_sec)) - (t1->tv_usec + (1000000 * t1->tv_sec));
+    result->tv_sec = diff / 1000000;
+    result->tv_usec = diff % 1000000;
+
+    elapsedMs = (1000*result->tv_sec + (result->tv_usec/1000));
+    printf("%ld.%06ld\n", result->tv_sec, result->tv_usec);
+    printf("elapsed milliseconds: %ld\n", elapsedMs);
+
+    if ( diff > 0 ) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+
+
 
 /************************************ EOF ********************************/

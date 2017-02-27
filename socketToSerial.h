@@ -40,7 +40,7 @@
 
 // Socket definitions
 #define MAXPENDING      1    /* Max connection requests */
-#define BUFFSIZE        1500
+#define SOCK_BUF_SIZE   1500
 
 #define LEN_SERIAL_PORT 32
 
@@ -92,6 +92,9 @@
 #define RESET_DELAY                 1000000
 
 #define RESPONSE_LENGTH             2 // TODO: fix
+
+// Serial comm timeout
+#define SERIAL_TIMEOUT              200 // milliseconds
 
 // Default tlv values
 #define DFLT_MOTOR          (MOTOR_REFRESH_PERIOD-1)
@@ -186,9 +189,10 @@ void        SetDefaults (void);
 bool        LoadDefaults (void);
 bool        SaveDefaults (void);
 void*       Webcam(void *arg);
-void        BoardComm( TLV_TYPE type );
+bool        BoardComm( TLV_TYPE type );
 void        HandleClient( void );
 TLV_TYPE    InterpretSocketCommand(uint8_t *data, uint32_t length);
+bool        SerialGetResponse( uint32_t timeout );
 void        SetServo (uint8_t servo, uint32_t position);
 void        SetMotor (uint8_t motor, int32_t power);
 void        SetLED (uint32_t power);

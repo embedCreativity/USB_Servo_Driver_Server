@@ -64,8 +64,22 @@
 #define BS_PWR_C            1 // bits 2-7 are unused
 
 // Update position data Ack
-#define TYPE_UPDATE_ACK      0xCC
-#define LENGTH_UPDATE_ACK    0
+#define TYPE_ACK        0xCC
+#define LENGTH_ACK      3
+#define POS_STATUS      2 // 1 byte
+#define POS_ADC_RESULT  3 // 2 bytes
+
+/************************************/
+/*   typedefs                       */
+/************************************/
+
+typedef struct _tlvAck_T {
+    uint8_t     type;
+    uint8_t     length;
+    uint8_t     status; // bit field (TBD)
+    uint16_t    adcResult; // 12-bit ADC result
+    uint8_t     checksum;
+} __attribute__ ((__packed__)) tlvAck_T;
 
 #endif
 
