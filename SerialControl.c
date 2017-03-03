@@ -421,15 +421,15 @@ void SerialClose(void) {
 bool GetTimeDiff ( struct timeval *result, struct timeval *t2, struct timeval *t1 )
 {
     long int diff;
-    long int elapsedMs;
+    //long int elapsedMs;
 
     diff = (t2->tv_usec + (1000000 * t2->tv_sec)) - (t1->tv_usec + (1000000 * t1->tv_sec));
     result->tv_sec = diff / 1000000;
     result->tv_usec = diff % 1000000;
 
-    elapsedMs = (1000*result->tv_sec + (result->tv_usec/1000));
-    printf("%ld.%06ld\n", result->tv_sec, result->tv_usec);
-    printf("elapsed milliseconds: %ld\n", elapsedMs);
+    //elapsedMs = (1000*result->tv_sec + (result->tv_usec/1000));
+    //printf("%ld.%06ld\n", result->tv_sec, result->tv_usec);
+    //printf("elapsed milliseconds: %ld\n", elapsedMs);
 
     if ( diff > 0 ) {
         return true;
