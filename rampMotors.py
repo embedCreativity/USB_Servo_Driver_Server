@@ -4,6 +4,8 @@ from simpleAPI import RoboAPI
 
 foo = RoboAPI(49000)
 foo.send('mon')
+foo.send('setled 4')
+foo.send('setservo 1 0')
 
 while True:
     for i in range(10):
