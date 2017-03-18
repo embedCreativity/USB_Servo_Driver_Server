@@ -757,11 +757,13 @@ void SetMotor ( uint8_t motor, int32_t power )
             break;
     }
     // map API range to board's expected range
+    //printf("motor[%d], orig[%d]\t", motor, power);
     if ( power < 0 ) {
         // We cheat by keeping the value positive for the board's power setting
         // But we mark the GPIO direction via the MSb.
         power = abs(power);
         negative = true;
+        //printf("negative!\t");
     }
     if ( power == 0 ) {
         power = MOTOR_REFRESH_PERIOD - 1; // off
@@ -770,8 +772,9 @@ void SetMotor ( uint8_t motor, int32_t power )
     }
     if ( negative ) {
         // we set the most significant bit to indicate a backward direction
-        power |= (1 << 24);
+        power |= (1 << 23);
     }
+    //printf("motor[%d], adj[0x%x]\n", motor, power);
     memcpy(ptrMotor, &power, 3);
 }
 

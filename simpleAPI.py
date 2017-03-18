@@ -18,7 +18,7 @@ class RoboAPI:
 
     def send(self, cmd=DEFAULT_MSG):
         self.sock.send(str(cmd))
-        time.sleep(0.1)
+        #time.sleep(0.1)
         self.data = self.sock.recv(100)
         print 'Received ' + str(len(self.data)) + ' bytes in response'
         print '--> ' + str(self.data)
