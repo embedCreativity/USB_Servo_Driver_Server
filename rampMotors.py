@@ -3,7 +3,7 @@
 import time
 from simpleAPI import RoboAPI
 
-foo = RoboAPI(49000)
+foo = RoboAPI(40000)
 foo.send('mon')
 foo.send('setled 4')
 foo.send('setservo 1 0')
