@@ -20,8 +20,12 @@ class RoboAPI:
         self.sock.send(str(cmd))
         #time.sleep(0.1)
         self.data = self.sock.recv(100)
-        print 'Received ' + str(len(self.data)) + ' bytes in response'
-        print '--> ' + str(self.data)
+        try:
+            values = self.data.split(',')
+            voltage = (int(values[1],16) / 4096.0) * 19.8
+            print 'Battery: {:.2f}V'.format(voltage)
+        except:
+            print "ERROR: parsing response"
 
     def close(self):
         self.sock.close()

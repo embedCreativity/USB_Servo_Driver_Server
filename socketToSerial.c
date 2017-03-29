@@ -339,7 +339,7 @@ void HandleClient( void )
             type = InterpretSocketCommand(socketBuf, cntSocketRx);
             // transmit the packet to the board
             if ( BoardComm(type) ) {
-                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "status[0x%x], adc[0x%x]",
+                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "0x%x,0x%x",
                   bBoardStatus, shortADCResult);
             } else {
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "BoardComm Error");
