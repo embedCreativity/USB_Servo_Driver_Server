@@ -19,6 +19,10 @@ setDefaults.o: setDefaults.c
 
 all: $(ProgramName) setDefaults
 
+install: $(ProgramName)
+	sudo cp --preserve=timestamps $(ProgramName) /usr/local/bin/
+	sudo cp --preserve=timestamps setDefaults /usr/local/bin/
+
 # remove object files and executable when user executes "make clean"
 clean:
 	rm -f *.o socketToSerial setDefaults

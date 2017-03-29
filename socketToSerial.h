@@ -46,7 +46,7 @@
 
 // Daemon definitions
 #define DAEMON_NAME "serialServer"
-#define DEFAULT_FILE "defaults.bin"
+#define DEFAULT_FILE "/usr/local/etc/defaults.bin"
 
 // From TivaPWM.h
 // 20ms (50Hz) = SERVO_REFRESH_PERIOD clocks at a system clock rate of 80MHz
