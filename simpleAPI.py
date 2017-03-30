@@ -18,7 +18,7 @@ class RoboAPI:
 
     def send(self, cmd=DEFAULT_MSG):
         self.sock.send(str(cmd))
-        #time.sleep(0.1)
+        #time.sleep(0.001)
         self.data = self.sock.recv(100)
         try:
             values = self.data.split(',')

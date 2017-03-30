@@ -3,7 +3,7 @@
 import time
 from simpleAPI import RoboAPI
 
-foo = RoboAPI(40000)
+foo = RoboAPI(49000)
 
 while True:
     for i in range(100):

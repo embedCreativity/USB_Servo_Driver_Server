@@ -94,7 +94,7 @@
 #define RESPONSE_LENGTH             2 // TODO: fix
 
 // Serial comm timeout
-#define SERIAL_TIMEOUT              750 // milliseconds
+#define SERIAL_TIMEOUT              100 // milliseconds
 
 // Default tlv values
 #define DFLT_MOTOR          (MOTOR_REFRESH_PERIOD-1)
