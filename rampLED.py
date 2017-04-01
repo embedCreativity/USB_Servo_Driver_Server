@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 
 import time
-from simpleAPI import RoboAPI
+from embedcreativityAPI import PalmettoAPI
 
-foo = RoboAPI(49000)
+foo = PalmettoAPI()
 
 while True:
     for i in range(100):

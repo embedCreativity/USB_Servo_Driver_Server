@@ -213,6 +213,7 @@ int SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs) {
     } while ( (elapsedMs < timeOutMs) && (len > 0) );
 
     if ( elapsedMs >= timeOutMs ) {
+        printf("elapsedMs: %ld, timeOutMs: %d\n",  elapsedMs, timeOutMs);
         return SERIAL_TIMEOUT_CODE;
     }
     return totalBytesRead;

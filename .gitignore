@@ -1,0 +1,5 @@
+setDefaults
+socketToSerial
+*.swp
+*.o
+*.pyc
