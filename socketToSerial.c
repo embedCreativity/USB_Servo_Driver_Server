@@ -71,8 +71,9 @@ savedDefaults_T cfgDefaultPosition;
 // struct for holding data,len returned from SerialRead
 serialRx_T serialRxData;
 tlvAck_T tlvAck = { .type = TYPE_ACK, .length = LENGTH_ACK, .status = 0,
-  .adcResult = 0, .checksum = 0 };
-uint16_t shortADCResult;
+  .adcVoltage= 0, .adcCurrent = 0, .checksum = 0 };
+uint16_t shortADCVoltage;
+uint16_t shortADCCurrent;
 uint8_t bBoardStatus;
 
 // handles to the threads
@@ -339,8 +340,8 @@ void HandleClient( void )
             type = InterpretSocketCommand(socketBuf, cntSocketRx);
             // transmit the packet to the board
             if ( BoardComm(type) ) {
-                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "0x%x,0x%x",
-                  bBoardStatus, shortADCResult);
+                snprintf((char*)socketBuf, SOCK_BUF_SIZE, "0x%x,0x%x,0x%x",
+                  bBoardStatus, shortADCVoltage, shortADCCurrent);
             } else {
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "BoardComm Error");
             }
@@ -441,7 +442,7 @@ bool SerialGetResponse( uint32_t timeout )
             if ( i < serialRxData.len ) {
                 if ( LENGTH_ACK == serialRxData.data[i] ) {
                     i += 1; // increment pointer in read buffer
-                    offset = POS_STATUS; // mark next thing to look for
+                    offset = TLV_OVERHEAD - 1; // mark next thing to look for
                 } else { // fail - corrupt data
                     offset = 0;
                     continue;
@@ -452,7 +453,7 @@ bool SerialGetResponse( uint32_t timeout )
         }
 
         // Data bytes
-        if ( (POS_STATUS <= offset ) && (offset < (LENGTH_ACK + 2)) )
+         if ( ((TLV_OVERHEAD - 1) <= offset ) && (offset < (LENGTH_ACK + 2)) )
         {
             ptr = (uint8_t*)&tlvAck;
             for ( ; (i < serialRxData.len) && (offset < LENGTH_ACK + 2); i++ ) {
@@ -472,7 +473,8 @@ bool SerialGetResponse( uint32_t timeout )
                 }
                 else { // Checksum verified!
                     bBoardStatus = tlvAck.status;
-                    shortADCResult = tlvAck.adcResult;
+                    shortADCVoltage = tlvAck.adcVoltage;
+                    shortADCCurrent = tlvAck.adcCurrent;
                     return true;
                 }
             } else { // no more data; go around

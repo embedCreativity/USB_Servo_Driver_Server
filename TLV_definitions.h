@@ -65,9 +65,7 @@
 
 // Update position data Ack
 #define TYPE_ACK        0xCC
-#define LENGTH_ACK      3
-#define POS_STATUS      2 // 1 byte
-#define POS_ADC_RESULT  3 // 2 bytes
+#define LENGTH_ACK      5
 
 /************************************/
 /*   typedefs                       */
@@ -77,7 +75,8 @@ typedef struct _tlvAck_T {
     uint8_t     type;
     uint8_t     length;
     uint8_t     status; // bit field (TBD)
-    uint16_t    adcResult; // 12-bit ADC result
+    uint16_t    adcVoltage; // 12-bit ADC result
+    uint16_t    adcCurrent; // 12-bit ADC result
     uint8_t     checksum;
 } __attribute__ ((__packed__)) tlvAck_T;
 
