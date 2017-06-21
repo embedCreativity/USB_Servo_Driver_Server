@@ -30,7 +30,7 @@ class PalmettoAPI:
             # 12-bit ADC result 4095(12-bit max) = 3.3V. Thus for every single bit
             # in ADC result, that's an increase of 0.01343101A
             # Benchtop testing shows an offset of 158mA in idle output
-            adcCurrent = max(0, int(values[2],16) - 12)
+            adcCurrent = max(0, int(values[2],16))
             current = (float(adcCurrent)) * (55.0/4096.0)
             print 'Battery: {:.2f}V, {:.3f}A'.format(voltage, current)
         except:
