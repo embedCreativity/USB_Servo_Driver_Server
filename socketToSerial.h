@@ -89,7 +89,7 @@
 #define SERIAL_READ_DELAY           1000
 
 // Delay between resetting position and turning off power
-#define RESET_DELAY                 1000000
+#define RESET_DELAY                 2000000
 
 #define RESPONSE_LENGTH             2 // TODO: fix
 
