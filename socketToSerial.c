@@ -16,8 +16,11 @@
 /*  03/09/2010 (MarkT): Resumed development on project, moved official  */
 /*                      copy to server                                  */
 /*  10/10/2016 (MarkT): Finally actually working on this                */
+/*  07/10/2017 (MarkT): Adding SQL logging of voltage/power for web     */
 /*                                                                      */
 /************************************************************************/
+
+#define _GNU_SOURCE
 
 //Debug switch
 #define  DEBUG
@@ -25,8 +28,15 @@
 //compilation directives
 #define VERBOSE
 //#define WEBCAM
+#define SQL_POWER
 
-#define _GNU_SOURCE
+
+
+
+#define CMDBUFLEN 256
+#define SQL_TRIM "delete from power where id < ( select min(id) from ( select id from power order by id desc limit 100));"
+#define SQL_INSERT "insert into power ( voltage, current ) values ( %.3f, %.3f ); %s"
+
 
 /* ------------------------------------------------------------ */
 /*              Include File Definitions                        */
@@ -44,6 +54,10 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <socket.h> // My installed library
+
+#if defined(SQL_POWER)
+#include <sqlite3.h> // for webpage display of voltage and current readings
+#endif
 
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
 
@@ -77,7 +91,15 @@ uint16_t shortADCCurrent;
 uint8_t bBoardStatus;
 
 // handles to the threads
+bool fRunning = true;
+
+#if defined(WEBCAM)
 pthread_t threadWebcam;
+#endif
+
+#if defined(SQL_POWER)
+pthread_t threadUpdateSql;
+#endif
 
 char serialPort[LEN_SERIAL_PORT];
 int portNum;
@@ -88,11 +110,17 @@ extern SocketInterface_T socketIntf;
 /*              Local Variables                                 */
 /* ------------------------------------------------------------ */
 
+#if defined(SQL_POWER)
+float voltage;
+float current;
+#endif
 
 /* ------------------------------------------------------------ */
 /*              Forward Declarations                            */
 /* ------------------------------------------------------------ */
-
+#if defined(SQL_POWER)
+void* SqlLogging(void *arg);
+#endif
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
@@ -127,9 +155,13 @@ void signal_handler(int sig)
         case SIGTERM:
         case SIGINT:
         case SIGQUIT:
+            fRunning = false; // signal threads to quit
             // Wait for threads to return
         #if defined(WEBCAM)
             pthread_join(threadWebcam, NULL);
+        #endif
+        #if defined(SQL_POWER)
+            pthread_join(threadUpdateSql, NULL);
         #endif
 
             syslog(LOG_WARNING, "Received SIGHUP signal.");
@@ -314,6 +346,14 @@ void HandleClient( void )
     } // end if
     #endif
 
+    #if defined(SQL_POWER)
+    // Start periodic update of power logging
+    if (pthread_create(&threadUpdateSql, NULL, &SqlLogging, NULL)) {
+        syslog(LOG_PERROR, "ERROR;  pthread_create(&threadUpdateSql... \n");
+    } // end if
+    #endif
+
+
     /****************************************/
     /* Prep Serial Handling                 */
     if ( false == LoadDefaults() ) {
@@ -342,6 +382,16 @@ void HandleClient( void )
             if ( BoardComm(type) ) {
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "0x%x,0x%x,0x%x",
                   bBoardStatus, shortADCVoltage, shortADCCurrent);
+
+            #if defined(SQL_POWER)
+                // Put ADC Reading into the Sqlite database for the webpage
+                // Must convert from the Palmetto Board's ADC result to a voltage.
+                // ADC has a sample range of 4096 with 19.8 representing the maximum voltage
+                // Current has a maximum of 55.0Amps represented by a linear voltage from the
+                // current sense amplifier.
+                voltage = (shortADCVoltage / 4096.0) * 19.8;
+                current = shortADCCurrent * (55.0/4096.0);
+            #endif
             } else {
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "BoardComm Error");
             }
@@ -879,9 +929,59 @@ void* Webcam(void *arg) {
     system("mjpg_streamer -i \"/usr/lib/input_uvc.so -d /dev/video1\" -o \"/usr/lib/output_http.so\"");
     return NULL;
 } //end Webcam
-
-
-/****************************************************************************/
 #endif
+
+#if defined(SQL_POWER)
+/* ------------------------------------------------------------ */
+/***    SqlLogging
+**
+**  Synopsis:
+**      void    SqlLogging(void *threadid);
+**
+**  Parameters:
+**      void *threadid
+**
+**  Return Values:
+**      none
+**
+**  Errors:
+**      none
+**
+**  Description:
+**
+*/
+void* SqlLogging(void *arg) {
+    sqlite3 *connDB;
+    int sqlReturn;
+    char *zErrMsg;
+    char pathToSqlDb[] = "/var/www/html/sql/stat.sl3";
+    char cmd[CMDBUFLEN];
+
+#if defined(DEBUG)
+    fprintf(stdout, "SqlLogging Started.\n");
+#else
+    syslog(LOG_INFO, "SqlLogging Started.");
+#endif
+
+    while (fRunning) {
+        sleep(1);
+        sqlReturn = sqlite3_open(pathToSqlDb, &connDB);
+        if (sqlReturn) {
+            printf("ERROR: Can not open database: %s\n", sqlite3_errmsg(connDB) );
+            continue;
+        }
+        // TODO: protect voltage/current with mutex
+        snprintf((char*)cmd, CMDBUFLEN, SQL_INSERT, voltage, current, SQL_TRIM );
+        sqlReturn  = sqlite3_exec(connDB, (char*)cmd, NULL, 0, &zErrMsg);
+        if( sqlReturn != SQLITE_OK ){
+            sqlite3_free(zErrMsg);
+        }
+        sqlite3_close(connDB);
+    }
+
+    return NULL;
+} //end Webcam
+#endif
+/****************************************************************************/
 
 

@@ -1,6 +1,6 @@
 ProgramName := socketToSerial
 
-LIBS += -lsocket -lpthread
+LIBS += -lsocket -lpthread -lsqlite3
 CFLAGS += -g -Wall
 LDFLAGS += -L/usr/lib
 
