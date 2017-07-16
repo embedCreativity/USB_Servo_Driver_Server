@@ -1,16 +1,13 @@
 ProgramName := socketToSerial
 
-LIBS += -lsocket -lpthread -lsqlite3
+LIBS += -lsocket -lec_serial -lpthread -lsqlite3
 CFLAGS += -g -Wall
 LDFLAGS += -L/usr/lib
 
-socketToSerial: socketToSerial.o SerialControl.o
-	$(CC) $(CFLAGS) $(LDFLAGS) socketToSerial.o SerialControl.o -o socketToSerial $(LIBS)
+socketToSerial: socketToSerial.o
+	$(CC) $(CFLAGS) $(LDFLAGS) socketToSerial.o -o socketToSerial $(LIBS)
 socketToSerial.o: socketToSerial.c
 	$(CC) $(CFLAGS) -c socketToSerial.c
-
-SerialControl.o: SerialControl.c
-	$(CC) $(CFLAGS) -c SerialControl.c
 
 setDefaults: setDefaults.o
 	$(CC) setDefaults.o -o setDefaults

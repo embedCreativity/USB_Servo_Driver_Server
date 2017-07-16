@@ -54,6 +54,7 @@
 #include <signal.h>
 #include <stdbool.h>
 #include <socket.h> // My installed library
+#include <ec_serial.h> // My installed library
 
 #if defined(SQL_POWER)
 #include <sqlite3.h> // for webpage display of voltage and current readings
@@ -62,7 +63,6 @@
 #include <pthread.h> //peripheral thread library; must compile with -lpthread option
 
 //seperate thread that handles incoming serial communications
-#include "SerialControl.h" /* my Serial comm functions */
 #include "socketToSerial.h"
 #include "TLV_definitions.h"
 
