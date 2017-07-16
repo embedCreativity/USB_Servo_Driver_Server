@@ -67,8 +67,6 @@ int     SerialRead(uint8_t *result, uint32_t len, uint32_t timeOutMs);
 int     SerialGetBaud(void);
 bool    SerialInit(char *szDevice, int baudRate);
 void    SerialClose(void);
-bool    GetTimeDiff ( struct timeval *result,
-            struct timeval *t2, struct timeval *t1 );
 /* ------------------------------------------------------------ */
 
 #endif

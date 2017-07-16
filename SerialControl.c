@@ -54,6 +54,8 @@ int fd;
 /*              Forward Declarations                            */
 /* ------------------------------------------------------------ */
 
+static bool    GetTimeDiff ( struct timeval *result,
+            struct timeval *t2, struct timeval *t1 );
 
 /* ------------------------------------------------------------ */
 /*              Procedure Definitions                           */
