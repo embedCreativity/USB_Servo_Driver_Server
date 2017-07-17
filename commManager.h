@@ -26,7 +26,11 @@ class CommManager {
 public:
 
     // class functions
-    CommManager() {};
+    CommManager()
+    {
+        running = true;
+    };
+
     ~CommManager() {};
 
     // Call to add subscriber
@@ -42,14 +46,13 @@ public:
 
 private:
 
-    // This function calls all the subscribers and sends current status
-    void PublishStatus(void);
-
     // data members
     palmettoStatus_T status;
 
     // subscribers
     std::vector<void (*)(palmettoStatus_T)> subscribers;
+
+    bool running;
 
 };
 

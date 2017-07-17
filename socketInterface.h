@@ -6,8 +6,11 @@
 #define __SOCKET_INTERFACE_H__
 
 #include <iostream>
+#include <iomanip>
+#include <thread>
+#include <unistd.h>
 #include "types.h"
-#include "commManager.h"
+#include "pubsub.h"
 
 using namespace std;
 
@@ -33,29 +36,38 @@ class SocketInterface {
 public:
 
     // class functions
-    SocketInterface() {};
+    SocketInterface()
+    {
+        running = true;
+        subCommManager = new StatusSubscriber(&status);
+    };
+
     ~SocketInterface() {};
 
+    void SetPort(uint16_t listenPort) { port = listenPort; };
+
     // primary socketInterface thread - doesn't return
-    void StartServer(uint16_t port);
+    void Start();
+    void Stop() { running = false; t->join(); };
 
-    // Provide the watchdog's callback here
-    void SetWatchdogFeeder(void (*callback)(void)) { feedWatchDog = callback; }
-
-    // data members
+    // subscribe to commManager's device status data updates
     StatusSubscriber *subCommManager;
 
-    // updated through the UpdateStatus callback
+    // updated through the subCommManager's publish messages
     palmettoStatus_T status;
+
+    Publisher pubWatchdog;
 
 private:
 
-    // Watchdog Feed callback
-    void (*feedWatchDog)(void);
+    void StartServer();
 
+    uint16_t port;
 
     // main tells us if we're still running
     bool running;
+
+    thread *t;
 };
 
 #endif

@@ -1,23 +1,22 @@
-#include <iomanip>
 #include "socketInterface.h"
 
-void SocketInterface::StartServer(uint16_t port)
+void SocketInterface::Start()
+{
+    t = new thread(&SocketInterface::StartServer, this);
+}
+
+void SocketInterface::StartServer()
 {
     cout << "Totally going to use port " << port << endl;
 
+    // report latest status
+    cout << "socket data: 0x" << hex << status.status << fixed <<
+        setprecision(3) << status.voltage << " " << status.current << endl;
+
     while(running)
     {
-
-        // do something
-
-        // report latest status
-        cout << "socket data: 0x" << hex << status.status << fixed <<
-            setprecision(3) << status.voltage << " " << status.current << endl;
-
-        // feed the watchdog through the callback
-        (*feedWatchDog)();
-        running = false;
-
+        pubWatchdog.notify(); // reset watchdog
+        usleep(1000000); // sleep 1 second
     }
 
 }
