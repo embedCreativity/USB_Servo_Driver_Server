@@ -1,5 +1,21 @@
 #include "commManager.h"
 
+void CommManager::Start()
+{
+    t = new thread(&CommManager::StartCommManager, this);
+}
+
+void CommManager::StartCommManager()
+{
+    cout << "CommManager started" << endl;
+
+    while ( running )
+    {
+        cout << "commManager[motorA]: " << controlData.motorA[0] << endl;
+        usleep(100000);
+    }
+}
+
 void CommManager::ModStatus(void)
 {
     status.status = 1;
@@ -7,7 +23,7 @@ void CommManager::ModStatus(void)
     status.current = 9.876;
     status.commFault = false;
     cout << "commManager-> publishing!" << endl;
-    publisher.notify(&status);
+    pubBoardStatus.notify(&status);
 }
 
 #ifdef DEAD

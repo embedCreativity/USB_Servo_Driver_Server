@@ -56,6 +56,8 @@ public:
 
     uint32_t watchdogCount;
 
+    Publisher pubCommManager;
+
 private:
 
     void StartWatchdog(void);

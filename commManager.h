@@ -8,7 +8,9 @@
 #include <iostream>
 #include <algorithm> // STL remove
 #include <vector> // STL vector
+#include <thread>
 #include <stdint.h>
+#include <unistd.h>
 #include "pubsub.h"
 #include "types.h"
 
@@ -19,8 +21,27 @@ using namespace std;
 ****************************************************/
 
 /****************************************************
-*   Class Declaraction                              *
+*   Class Declaractions                             *
 ****************************************************/
+
+class ControlDataSubscriber: public Subscriber
+{
+public:
+    ControlDataSubscriber(controlData_T *data)
+    {
+        pControlData = data;
+    };
+
+    void update(Publisher* who, void* what = 0)
+    {
+        *pControlData = *((controlData_T*)what);
+        cout << "commManager-> a publisher" << endl;
+    };
+
+    controlData_T *pControlData;
+};
+
+
 class CommManager {
 
 public:
@@ -29,9 +50,14 @@ public:
     CommManager()
     {
         running = true;
+        subControlData = new ControlDataSubscriber(&controlData);
     };
 
     ~CommManager() {};
+
+    // primary commManager thread
+    void Start();
+    void Stop() { running = false; t->join(); };
 
     // Call to add subscriber
     void AddSubscriber(void (*callback)(palmettoStatus_T));
@@ -42,10 +68,17 @@ public:
     // debug
     void ModStatus(void);
 
-    Publisher publisher;
+    // publishers (socket&watchdog) set this
+    controlData_T controlData;
+
+    // subscribe to socket and watchdog
+    ControlDataSubscriber *subControlData;
+
+    Publisher pubBoardStatus;
 
 private:
 
+    void StartCommManager();
     // data members
     palmettoStatus_T status;
 
@@ -54,6 +87,7 @@ private:
 
     bool running;
 
+    thread *t;
 };
 
 #endif

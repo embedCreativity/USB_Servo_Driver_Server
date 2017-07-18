@@ -7,6 +7,7 @@ void SocketInterface::Start()
 
 void SocketInterface::StartServer()
 {
+    int i = 0; // debug
     cout << "Totally going to use port " << port << endl;
 
     // report latest status
@@ -15,6 +16,9 @@ void SocketInterface::StartServer()
 
     while(running)
     {
+        controlData.motorA[0] = i;
+        i += 1;
+        pubCommManager.notify(&controlData);
         pubWatchdog.notify(); // reset watchdog
         usleep(1000000); // sleep 1 second
     }

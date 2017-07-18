@@ -56,7 +56,11 @@ public:
     // updated through the subCommManager's publish messages
     palmettoStatus_T status;
 
+    // socket's copy of the current control data
+    controlData_T controlData;
+
     Publisher pubWatchdog;
+    Publisher pubCommManager;
 
 private:
 

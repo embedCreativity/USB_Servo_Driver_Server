@@ -1,27 +1,43 @@
 ProgramName := socketToSerial
 
-LIBS += -lsocket -lec_serial -lpthread -lsqlite3
-CFLAGS += -g -Wall
+LIBS += -pthread
+#LIBS += -lsocket -lec_serial -lsqlite3
+CXXFLAGS += -std=c++11 -g -Wall
+#CFLAGS += -std=c++11 -pthread -g -Wall
 LDFLAGS += -L/usr/lib
 
-socketToSerial: socketToSerial.o
-	$(CC) $(CFLAGS) $(LDFLAGS) socketToSerial.o -o socketToSerial $(LIBS)
-socketToSerial.o: socketToSerial.c
-	$(CC) $(CFLAGS) -c socketToSerial.c
+main: main.o commManager.o socketInterface.o watchDog.o pubsub.o
+	$(CXX) $(LDFLAGS) main.o commManager.o socketInterface.o watchDog.o pubsub.o -o $(ProgramName) $(LIBS)
+main.o: main.cc
+	$(CXX) $(CXXFLAGS) -c main.cc
 
-setDefaults: setDefaults.o
-	$(CC) setDefaults.o -o setDefaults
-setDefaults.o: setDefaults.c
-	$(CC) $(CFLAGS) -c setDefaults.c
+commManager: commManager.o
+	$(CXX) $(LDFLAGS) commManager.o $(LIBS)
+commManager.o: commManager.cc
+	$(CXX) $(CXXFLAGS) -c commManager.cc
 
-all: $(ProgramName) setDefaults
+socketInterface: socketInterface.o
+	$(CXX) $(LDFLAGS) socketInterface.o $(LIBS)
+socketInterface.o: socketInterface.cc
+	$(CXX) $(CXXFLAGS) -c socketInterface.cc
+
+pubsub: pubsub.o
+	$(CXX) $(LDFLAGS) pubsub.o $(LIBS)
+pubsub.o: pubsub.cc
+	$(CXX) $(CXXFLAGS) -c pubsub.cc
+
+watchDog: watchDog.o
+	$(CXX) $(LDFLAGS) watchDog.o $(LIBS)
+watchDog.o: watchDog.cc
+	$(CXX) $(CXXFLAGS) -c watchDog.cc
+
+all: $(ProgramName)
 
 install: $(ProgramName)
 	sudo cp --preserve=timestamps $(ProgramName) /usr/local/bin/
-	sudo cp --preserve=timestamps setDefaults /usr/local/bin/
 
 # remove object files and executable when user executes "make clean"
 clean:
-	rm -f *.o socketToSerial setDefaults
+	rm -f *.o socketToSerial
 
 

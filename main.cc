@@ -23,9 +23,12 @@ int main(void)
     // init classes
     socket.SetPort(SOCKET_PORT);
 
-    // Set up callbacks
-    commManager.publisher.subscribe(socket.subCommManager);
+    // Set up publisher/subscribers
+    commManager.pubBoardStatus.subscribe(socket.subCommManager);
     socket.pubWatchdog.subscribe(watchdog.subWatchdog);
+    // socket and watchdog both can set the control data being sent out commManager
+    socket.pubCommManager.subscribe(commManager.subControlData);
+    watchdog.pubCommManager.subscribe(commManager.subControlData);
 
     // do stuff
     commManager.ModStatus(); // modify status and call notify to subs
