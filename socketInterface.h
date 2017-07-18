@@ -9,27 +9,11 @@
 #include <iomanip>
 #include <thread>
 #include <unistd.h>
-#include "types.h"
 #include "pubsub.h"
+#include "types.h"
+#include "statusSubscriber.h"
 
 using namespace std;
-
-class StatusSubscriber: public Subscriber
-{
-public:
-    StatusSubscriber(palmettoStatus_T *status)
-    {
-        pStatus = status;
-    };
-
-    void update(Publisher* who, void* what = 0)
-    {
-        *pStatus = *((palmettoStatus_T*)what);
-        cout << "socket-> publisher called me!" << endl;
-    };
-
-    palmettoStatus_T *pStatus;
-};
 
 class SocketInterface {
 

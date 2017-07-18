@@ -6,8 +6,8 @@ CXXFLAGS += -std=c++11 -g -Wall
 #CFLAGS += -std=c++11 -pthread -g -Wall
 LDFLAGS += -L/usr/lib
 
-main: main.o commManager.o socketInterface.o watchDog.o pubsub.o
-	$(CXX) $(LDFLAGS) main.o commManager.o socketInterface.o watchDog.o pubsub.o -o $(ProgramName) $(LIBS)
+main: main.o commManager.o socketInterface.o watchDog.o batteryMonitor.o pubsub.o
+	$(CXX) $(LDFLAGS) main.o commManager.o socketInterface.o watchDog.o batteryMonitor.o pubsub.o -o $(ProgramName) $(LIBS)
 main.o: main.cc
 	$(CXX) $(CXXFLAGS) -c main.cc
 
@@ -30,6 +30,11 @@ watchDog: watchDog.o
 	$(CXX) $(LDFLAGS) watchDog.o $(LIBS)
 watchDog.o: watchDog.cc
 	$(CXX) $(CXXFLAGS) -c watchDog.cc
+
+batteryMonitor: batteryMonitor.o
+	$(CXX) $(LDFLAGS) batteryMonitor.o $(LIBS)
+batteryMonitor.o: batteryMonitor.cc
+	$(CXX) $(CXXFLAGS) -c batteryMonitor.cc
 
 all: $(ProgramName)
 

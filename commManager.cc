@@ -11,20 +11,14 @@ void CommManager::StartCommManager()
 
     while ( running )
     {
+        cout << "commMgr V before " << status.voltage << endl;
+        status.voltage = status.voltage - 1.0;
+        cout << "commMgr V after " << status.voltage << endl;
         cout << "commManager[motorA]: " <<
             unsigned(controlData.motorA[0]) << endl;
-        usleep(100000);
+        pubBoardStatus.notify(&status);
+        usleep(500000);
     }
-}
-
-void CommManager::ModStatus(void)
-{
-    status.status = 1;
-    status.voltage = 1.234;
-    status.current = 9.876;
-    status.commFault = false;
-    cout << "commManager-> publishing!" << endl;
-    pubBoardStatus.notify(&status);
 }
 
 #ifdef DEAD

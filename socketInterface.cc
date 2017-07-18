@@ -11,7 +11,7 @@ void SocketInterface::StartServer()
     cout << "Totally going to use port " << port << endl;
 
     // report latest status
-    cout << "socket data: 0x" << hex << status.status << fixed <<
+    cout << "socket data: " <<  unsigned(status.status) << " " << fixed <<
         setprecision(3) << status.voltage << " " << status.current << endl;
 
     while(running)
