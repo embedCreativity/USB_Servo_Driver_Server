@@ -47,6 +47,7 @@ int main(void)
 
     // now kill watchdog and exit
     watchdog.Stop();
+    commManager.Stop();
 
     return 0;
 }
