@@ -1,5 +1,26 @@
 #include "watchDog.h"
 
+void Watchdog::SetControlSafeValues(void)
+{
+    uint32_t safeMotor = SAFE_MOTOR;
+    uint32_t safeServo = SAFE_SERVO;
+    uint32_t safeLED = SAFE_LED;
+
+    memcpy(&controlData.motorA, &safeMotor, 3);
+    memcpy(&controlData.motorB, &safeMotor, 3);
+    memcpy(&controlData.motorC, &safeMotor, 3);
+    memcpy(&controlData.motorD, &safeMotor, 3);
+    memcpy(&controlData.servo1, &safeServo, 3);
+    memcpy(&controlData.servo2, &safeServo, 3);
+    memcpy(&controlData.servo3, &safeServo, 3);
+    memcpy(&controlData.servo4, &safeServo, 3);
+    memcpy(&controlData.servo5, &safeServo, 3);
+    memcpy(&controlData.servo6, &safeServo, 3);
+    memcpy(&controlData.servo7, &safeServo, 3);
+    memcpy(&controlData.servo8, &safeServo, 3);
+    memcpy(&controlData.extLed, &safeLED, 3);
+}
+
 void Watchdog::Start(void)
 {
     t = new thread(&Watchdog::StartWatchdog, this);
@@ -14,6 +35,7 @@ void Watchdog::StartWatchdog(void)
         // do something
         usleep(1000); // sleep for 1 ms
         if ( watchdogCount > WATCHDOG_TIMEOUT ) {
+            pubCommManager.notify(&controlData);
             cout << "Timeout!" << endl;
             cout << "watchDog: " << watchdogCount << endl;
             running = false;

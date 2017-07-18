@@ -11,7 +11,8 @@ void CommManager::StartCommManager()
 
     while ( running )
     {
-        cout << "commManager[motorA]: " << controlData.motorA[0] << endl;
+        cout << "commManager[motorA]: " <<
+            unsigned(controlData.motorA[0]) << endl;
         usleep(100000);
     }
 }

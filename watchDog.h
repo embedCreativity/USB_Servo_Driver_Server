@@ -6,6 +6,7 @@
 #define __WATCHDOG_H__
 
 #include <iostream>
+#include <cstring> // memcpy
 #include <iomanip>
 #include <thread>
 #include <unistd.h>
@@ -13,6 +14,11 @@
 #include "types.h"
 
 #define WATCHDOG_TIMEOUT 2000 // milliseconds
+
+// TODO: need to come up with easy language translation stuff
+#define SAFE_MOTOR 3999
+#define SAFE_SERVO 120000
+#define SAFE_LED 1
 
 using namespace std;
 
@@ -47,6 +53,8 @@ public:
 
     ~Watchdog() {};
 
+    void SetControlSafeValues(void);
+
     // primary thread
     void Start();
     void Stop() { running = false; t->join(); };
@@ -55,6 +63,9 @@ public:
     WatchdogSubscriber *subWatchdog;
 
     uint32_t watchdogCount;
+
+    // watchDog's safe copy of control data
+    controlData_T controlData;
 
     Publisher pubCommManager;
 

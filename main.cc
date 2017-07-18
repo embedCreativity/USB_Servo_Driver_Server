@@ -22,6 +22,7 @@ int main(void)
 
     // init classes
     socket.SetPort(SOCKET_PORT);
+    watchdog.SetControlSafeValues();
 
     // Set up publisher/subscribers
     commManager.pubBoardStatus.subscribe(socket.subCommManager);
@@ -36,6 +37,7 @@ int main(void)
     // launch threads
     socket.Start();
     watchdog.Start();
+    commManager.Start();
 
     usleep(3000000); // sleep for 3 seconds then kill socket to cause timeout
     socket.Stop();
