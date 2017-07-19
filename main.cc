@@ -1,6 +1,6 @@
 #include <iostream>
 #include <unistd.h>
-#include <stdio.h>
+#include <signal.h>
 #include "socketInterface.h"
 #include "commManager.h"
 #include "watchDog.h"
@@ -11,9 +11,23 @@
 
 using namespace std;
 
-void feederCallback (void) {
-    cout << "Feeder callback called!" << endl;
-    return;
+bool fRunning = true;
+
+void signal_handler(int sig)
+{
+    switch(sig)
+    {
+        case SIGHUP:
+        case SIGTERM:
+        case SIGINT:
+        case SIGQUIT:
+            // Wait for threads to return
+            fRunning = false; // this kills the main thread
+            break;
+        default:
+            //syslog(LOG_WARNING, "Unhandled signal (%d) %s", sig, strsignal(sig));
+            break;
+    }
 }
 
 int main(void)
@@ -23,6 +37,12 @@ int main(void)
     Watchdog watchdog;
     BatteryMonitor batteryMonitor;
     SqlUpdater sqlUpdater;
+
+    // signal handler
+    signal(SIGHUP, signal_handler);
+    signal(SIGTERM, signal_handler);
+    signal(SIGINT, signal_handler);
+    signal(SIGQUIT, signal_handler);
 
     // init classes
     socket.SetPort(SOCKET_PORT);
@@ -48,15 +68,13 @@ int main(void)
     batteryMonitor.Start();
     sqlUpdater.Start();
 
-    usleep(3000000); // sleep for 3 seconds then kill socket to cause timeout
-    socket.Stop();
+    while ( fRunning == true ) {
+        usleep(500000);
+    }
 
-    // sleep for 10 seconds
-    usleep(5000000);
-
-    // now kill watchdog and exit
-    watchdog.Stop();
     commManager.Stop();
+    socket.Stop();
+    watchdog.Stop();
     batteryMonitor.Stop();
     sqlUpdater.Stop();
 

@@ -7,17 +7,17 @@ void CommManager::Start()
 
 void CommManager::StartCommManager()
 {
-    cout << "CommManager started" << endl;
+    cout << "Starting CommManager" << endl;
 
     while ( running )
     {
+        usleep(500000);
         cout << "commMgr V before " << status.voltage << endl;
         status.voltage = status.voltage - 1.0;
         cout << "commMgr V after " << status.voltage << endl;
         cout << "commManager[motorA]: " <<
             unsigned(controlData.motorA[0]) << endl;
         pubBoardStatus.notify(&status);
-        usleep(500000);
     }
 }
 

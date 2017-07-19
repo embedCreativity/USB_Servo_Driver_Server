@@ -28,7 +28,7 @@ void Watchdog::Start(void)
 
 void Watchdog::StartWatchdog(void)
 {
-    cout << "Starting watchDog" << endl;
+    cout << "Starting WatchDog" << endl;
 
     while(running)
     {
