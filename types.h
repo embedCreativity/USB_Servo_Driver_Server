@@ -18,19 +18,21 @@ typedef struct _palmettoStatus_T {
 } palmettoStatus_T;
 
 typedef struct _controlData_T {
-    uint8_t motorA[3];
-    uint8_t motorB[3];
-    uint8_t motorC[3];
-    uint8_t motorD[3];
-    uint8_t servo1[3];
-    uint8_t servo2[3];
-    uint8_t servo3[3];
-    uint8_t servo4[3];
-    uint8_t servo5[3];
-    uint8_t servo6[3];
-    uint8_t servo7[3];
-    uint8_t servo8[3];
-    uint8_t extLed[3];
+    uint32_t motorA;
+    uint32_t motorB;
+    uint32_t motorC;
+    uint32_t motorD;
+    uint32_t servo1;
+    uint32_t servo2;
+    uint32_t servo3;
+    uint32_t servo4;
+    uint32_t servo5;
+    uint32_t servo6;
+    uint32_t servo7;
+    uint32_t servo8;
+    uint32_t extLed;
+    bool motorPower;
+    bool hostPower;
 } controlData_T;
 
 #endif

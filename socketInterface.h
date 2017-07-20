@@ -9,11 +9,14 @@
 #include <iomanip>
 #include <thread>
 #include <unistd.h>
+#include <socket.h> // my installed library
 #include "pubsub.h"
 #include "types.h"
 #include "statusSubscriber.h"
 
 using namespace std;
+
+extern SocketInterface_T socketIntf;
 
 class SocketInterface {
 
@@ -32,7 +35,7 @@ public:
 
     // primary socketInterface thread - doesn't return
     void Start();
-    void Stop() { running = false; t->join(); };
+    void Stop();
 
     // subscribe to commManager's device status data updates
     StatusSubscriber *subCommManager;
@@ -49,7 +52,8 @@ public:
 private:
 
     void StartServer();
-
+    void HandleClient();
+    bool InterpretSocketCommand(uint8_t *data, uint32_t length);
     uint16_t port;
 
     // main tells us if we're still running
