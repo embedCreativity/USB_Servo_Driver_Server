@@ -44,10 +44,6 @@ void SocketInterface::StartServer()
             return 0;
         }
 
-        // TODO: These publish statements need to be moved down below, after each
-        // update comes in from client
-        pubCommManager.notify(&controlData);
-        pubWatchdog.notify(); // reset watchdog
     }
 
 }
@@ -61,8 +57,10 @@ void SocketInterface::HandleClient( void )
         cntSocketRx = socketIntf.Read(socketBuf, SOCK_BUF_SIZE);
         if ( cntSocketRx > 0 ) {
             // TODO: do I need a bool return type?
-            InterpretSocketCommand(socketBuf, cntSocketRx);
-
+            if ( InterpretSocketCommand(socketBuf, cntSocketRx) ) {
+                pubCommManager.notify(&controlData);
+                pubWatchdog.notify(); // reset watchdog
+            }
             // send response back to client
             if ( false == status.commFault ) {
                 snprintf((char*)socketBuf, SOCK_BUF_SIZE, "0x%x,%.3f,%.3f",
