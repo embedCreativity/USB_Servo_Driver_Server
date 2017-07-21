@@ -16,7 +16,7 @@ void CommManager::StartCommManager()
         status.voltage = status.voltage - 1.0;
         cout << "commMgr V after " << status.voltage << endl;
         cout << "commManager[motorA]: " <<
-            unsigned(controlData.motorA[0]) << endl;
+            unsigned(controlData.motorA) << endl;
         pubBoardStatus.notify(&status);
     }
 }

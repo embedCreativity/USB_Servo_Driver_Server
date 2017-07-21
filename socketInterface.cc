@@ -1,5 +1,19 @@
 #include "socketInterface.h"
 
+#define SOCK_BUF_SIZE   1500
+#define MAX_SOCKET_MSG_LEN  SOCK_BUF_SIZE
+// Socket MSG API definitions
+#define API_SERVO_MIN 1
+#define API_SERVO_MAX 8
+#define API_SERVOPOS_MIN    0
+#define API_SERVOPOS_MAX    1500
+#define API_MOTOR_MIN       1
+#define API_MOTOR_MAX       4
+#define API_MOTORPOWER_MIN  -1000
+#define API_MOTORPOWER_MAX  1000
+#define API_LEDPOWER_MIN    0
+#define API_LEDPOWER_MAX    1000
+
 void SocketInterface::Start()
 {
     t = new thread(&SocketInterface::StartServer, this);
@@ -41,11 +55,9 @@ void SocketInterface::StartServer()
         } else {
             //syslog(LOG_INFO, "Failed to connect to socket - exit");
             cout << "socket -> failed to connect to socket" << endl;
-            return 0;
+            return;
         }
-
     }
-
 }
 
 void SocketInterface::HandleClient( void )
@@ -96,8 +108,8 @@ bool SocketInterface::InterpretSocketCommand(uint8_t *data, uint32_t length)
             cout << "socket -> InterpretSocketCommand() -> data = NULL, length = " <<
                 length << endl;
         } else {
-            //syslog(LOG_WARNING, "ISC()-->length = %d (max is %d)", length,\
-              MAX_SOCKET_MSG_LEN);
+            /*syslog(LOG_WARNING, "ISC()-->length = %d (max is %d)", length,\
+              MAX_SOCKET_MSG_LEN);*/
             cout << "socket -> InterpretSocketCommand() -> length = " <<
                 length << endl;
         }
@@ -202,7 +214,7 @@ bool SocketInterface::InterpretSocketCommand(uint8_t *data, uint32_t length)
                 case 4:
                     controlData.motorD = power;
                     break;
-                default;
+                default:
                     return false;
             }
         }
