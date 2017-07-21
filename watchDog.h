@@ -65,7 +65,7 @@ public:
     uint32_t watchdogCount;
 
     // watchDog's safe copy of control data
-    controlData_T controlData;
+    ControlData controlData;
 
     Publisher pubCommManager;
 

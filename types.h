@@ -7,6 +7,20 @@
 
 #include <stdint.h>
 
+#define SOCK_BUF_SIZE   1500
+#define MAX_SOCKET_MSG_LEN  SOCK_BUF_SIZE
+// Socket MSG API definitions
+#define API_SERVO_MIN 1
+#define API_SERVO_MAX 8
+#define API_SERVOPOS_MIN    0
+#define API_SERVOPOS_MAX    1500
+#define API_MOTOR_MIN       1
+#define API_MOTOR_MAX       4
+#define API_MOTORPOWER_MIN  -1000
+#define API_MOTORPOWER_MAX  1000
+#define API_LEDPOWER_MIN    0
+#define API_LEDPOWER_MAX    1000
+
 /****************************************************
 *   Types                                           *
 ****************************************************/
@@ -17,7 +31,21 @@ typedef struct _palmettoStatus_T {
     bool commFault;
 } palmettoStatus_T;
 
-typedef struct _controlData_T {
+
+
+
+class ControlData {
+public:
+
+    // overload comparison operators
+    void operator= (const ControlData &other);
+    bool operator== (const ControlData &other);
+    bool operator!= (const ControlData &other);
+
+    // What kind of messages are required of a detected change?
+    bool diffTypePosition(const ControlData *other);
+    bool diffTypePower(const ControlData *other);
+
     uint32_t motorA;
     uint32_t motorB;
     uint32_t motorC;
@@ -33,6 +61,6 @@ typedef struct _controlData_T {
     uint32_t extLed;
     bool motorPower;
     bool hostPower;
-} controlData_T;
+};
 
 #endif

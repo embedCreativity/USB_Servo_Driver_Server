@@ -44,7 +44,7 @@ public:
     palmettoStatus_T status;
 
     // socket's copy of the current control data
-    controlData_T controlData;
+    ControlData controlData;
 
     Publisher pubWatchdog;
     Publisher pubCommManager;

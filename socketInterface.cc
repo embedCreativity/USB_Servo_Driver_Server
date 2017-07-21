@@ -1,19 +1,5 @@
 #include "socketInterface.h"
 
-#define SOCK_BUF_SIZE   1500
-#define MAX_SOCKET_MSG_LEN  SOCK_BUF_SIZE
-// Socket MSG API definitions
-#define API_SERVO_MIN 1
-#define API_SERVO_MAX 8
-#define API_SERVOPOS_MIN    0
-#define API_SERVOPOS_MAX    1500
-#define API_MOTOR_MIN       1
-#define API_MOTOR_MAX       4
-#define API_MOTORPOWER_MIN  -1000
-#define API_MOTORPOWER_MAX  1000
-#define API_LEDPOWER_MIN    0
-#define API_LEDPOWER_MAX    1000
-
 void SocketInterface::Start()
 {
     t = new thread(&SocketInterface::StartServer, this);

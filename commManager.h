@@ -28,18 +28,18 @@ using namespace std;
 class ControlDataSubscriber: public Subscriber
 {
 public:
-    ControlDataSubscriber(controlData_T *data)
+    ControlDataSubscriber(ControlData *data)
     {
         pControlData = data;
     };
 
     void update(Publisher* who, void* what = 0)
     {
-        *pControlData = *((controlData_T*)what);
+        *pControlData = *((ControlData*)what);
         cout << "commManager-> controlData Updated" << endl;
     };
 
-    controlData_T *pControlData;
+    ControlData *pControlData;
 };
 
 // This fires when the voltage drops too low
@@ -60,7 +60,8 @@ public:
     bool *pAlert;
 };
 
-class CommManager {
+class CommManager
+{
 
 public:
 
@@ -94,7 +95,7 @@ public:
     void ModStatus(void);
 
     // publishers (socket&watchdog) set this
-    controlData_T controlData;
+    ControlData controlData;
     bool bLowVoltage;
 
     // subscribe to socket and watchdog
@@ -106,11 +107,19 @@ public:
 private:
 
     void StartCommManager();
+    uint8_t ComputeChecksum(uint8_t *input, uint32_t length);
+    void MapMotorValue(int32_t power, uint8_t *ptr);
+    void MapServoValue(uint32_t position, uint8_t *ptr);
+    void MapLedValue(uint32_t power, uint8_t *ptr);
+
     // data members
     palmettoStatus_T status;
 
     // subscribers
     std::vector<void (*)(palmettoStatus_T)> subscribers;
+
+    // copy of last transmitted control data
+    ControlData lastData;
 
     bool running;
 
