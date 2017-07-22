@@ -111,6 +111,10 @@ private:
     void MapMotorValue(int32_t power, uint8_t *ptr);
     void MapServoValue(uint32_t position, uint8_t *ptr);
     void MapLedValue(uint32_t power, uint8_t *ptr);
+    bool SendPositionData(void);
+    bool SendPowerData(void);
+    bool SendCommand(uint8_t *data, uint8_t length);
+    bool SerialGetResponse( uint32_t timeout );
 
     // data members
     palmettoStatus_T status;
