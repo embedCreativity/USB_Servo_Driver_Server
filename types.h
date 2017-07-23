@@ -7,6 +7,11 @@
 
 #include <stdint.h>
 
+// Used by watchdog and other ControlData init routines
+#define SAFE_MOTOR  0
+#define SAFE_SERVO  750
+#define SAFE_LED    0
+
 #define SOCK_BUF_SIZE   1500
 #define MAX_SOCKET_MSG_LEN  SOCK_BUF_SIZE
 // Socket MSG API definitions
@@ -37,6 +42,9 @@ typedef struct _palmettoStatus_T {
 class ControlData {
 public:
 
+    ControlData() {};
+    ~ControlData() {};
+
     // overload comparison operators
     void operator= (const ControlData &other);
     bool operator== (const ControlData &other);
@@ -45,6 +53,8 @@ public:
     // What kind of messages are required of a detected change?
     bool diffTypePosition(const ControlData *other);
     bool diffTypePower(const ControlData *other);
+
+    void Init(void); // set safe values for all fields
 
     uint32_t motorA;
     uint32_t motorB;

@@ -2,6 +2,7 @@
 
 void SocketInterface::Start()
 {
+    controlData.Init(); // set safe values
     t = new thread(&SocketInterface::StartServer, this);
 }
 

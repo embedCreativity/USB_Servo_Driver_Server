@@ -1,28 +1,8 @@
 #include "watchDog.h"
 
-void Watchdog::SetControlSafeValues(void)
-{
-    uint32_t safeMotor = SAFE_MOTOR;
-    uint32_t safeServo = SAFE_SERVO;
-    uint32_t safeLED = SAFE_LED;
-
-    memcpy(&controlData.motorA, &safeMotor, 3);
-    memcpy(&controlData.motorB, &safeMotor, 3);
-    memcpy(&controlData.motorC, &safeMotor, 3);
-    memcpy(&controlData.motorD, &safeMotor, 3);
-    memcpy(&controlData.servo1, &safeServo, 3);
-    memcpy(&controlData.servo2, &safeServo, 3);
-    memcpy(&controlData.servo3, &safeServo, 3);
-    memcpy(&controlData.servo4, &safeServo, 3);
-    memcpy(&controlData.servo5, &safeServo, 3);
-    memcpy(&controlData.servo6, &safeServo, 3);
-    memcpy(&controlData.servo7, &safeServo, 3);
-    memcpy(&controlData.servo8, &safeServo, 3);
-    memcpy(&controlData.extLed, &safeLED, 3);
-}
-
 void Watchdog::Start(void)
 {
+    controlData.Init(); // set safe values
     t = new thread(&Watchdog::StartWatchdog, this);
 }
 

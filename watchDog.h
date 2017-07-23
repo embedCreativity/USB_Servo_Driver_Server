@@ -15,11 +15,6 @@
 
 #define WATCHDOG_TIMEOUT 2000 // milliseconds
 
-// TODO: need to come up with easy language translation stuff
-#define SAFE_MOTOR 3999
-#define SAFE_SERVO 120000
-#define SAFE_LED 1
-
 using namespace std;
 
 class WatchdogSubscriber: public Subscriber
@@ -52,8 +47,6 @@ public:
     };
 
     ~Watchdog() {};
-
-    void SetControlSafeValues(void);
 
     // primary thread
     void Start();

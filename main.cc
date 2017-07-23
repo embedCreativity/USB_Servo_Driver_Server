@@ -60,7 +60,6 @@ int main(int argc, char *argv[])
 
     // init classes
     socket.SetPort(portNum);
-    watchdog.SetControlSafeValues();
     if ( !(commManager.InitComms(serialPort, baudRate)) )
     {
         cout << "Failed to set serial port parameters" << endl;

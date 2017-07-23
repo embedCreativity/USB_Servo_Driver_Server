@@ -3,6 +3,9 @@
 
 void CommManager::Start()
 {
+    /* lastData is not initialized, and therefore will cause commManager to send controlData to the board,
+       which will ensure that the board gets whatever the Init() data is. At that time, lastData is updated */
+    controlData.Init();
     t = new thread(&CommManager::StartCommManager, this);
 }
 
