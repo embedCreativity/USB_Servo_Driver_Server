@@ -9,8 +9,12 @@
 #include <algorithm> // STL remove
 #include <vector> // STL vector
 #include <thread>
+#include <cstring> // memcpy
 #include <stdint.h>
 #include <unistd.h>
+extern "C" {
+    #include <ec_serial.h> // my serial port library
+}
 #include "pubsub.h"
 #include "types.h"
 
@@ -113,6 +117,7 @@ private:
     void MapLedValue(uint32_t power, uint8_t *ptr);
     bool SendPositionData(void);
     bool SendPowerData(void);
+    bool SendHeartBeat(void);
     bool SendCommand(uint8_t *data, uint8_t length);
     bool SerialGetResponse( uint32_t timeout );
 

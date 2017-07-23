@@ -1,48 +1,48 @@
 ProgramName := socketToSerial
 
-LIBS += -pthread -lsocket
+LIBS += -lsocket -lec_serial -pthread
 #LIBS += -lsocket -lec_serial -lsqlite3
 CXXFLAGS += -std=c++11 -g -Wall
 #CFLAGS += -std=c++11 -pthread -g -Wall
 LDFLAGS += -L/usr/lib
 
 main: main.o commManager.o socketInterface.o watchDog.o batteryMonitor.o sqlUpdater.o pubsub.o types.o
-	$(CXX) $(LDFLAGS) main.o commManager.o socketInterface.o watchDog.o batteryMonitor.o sqlUpdater.o pubsub.o types.o -o $(ProgramName) $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) main.o commManager.o socketInterface.o watchDog.o batteryMonitor.o sqlUpdater.o pubsub.o types.o -o $(ProgramName) $(LIBS)
 main.o: main.cc
 	$(CXX) $(CXXFLAGS) -c main.cc
 
 commManager: commManager.o
-	$(CXX) $(LDFLAGS) commManager.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) commManager.o $(LIBS)
 commManager.o: commManager.cc
 	$(CXX) $(CXXFLAGS) -c commManager.cc
 
 socketInterface: socketInterface.o
-	$(CXX) $(LDFLAGS) socketInterface.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) socketInterface.o $(LIBS)
 socketInterface.o: socketInterface.cc
 	$(CXX) $(CXXFLAGS) -c socketInterface.cc
 
 pubsub: pubsub.o
-	$(CXX) $(LDFLAGS) pubsub.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) pubsub.o $(LIBS)
 pubsub.o: pubsub.cc
 	$(CXX) $(CXXFLAGS) -c pubsub.cc
 
 types: types.o
-	$(CXX) $(LDFLAGS) types.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) types.o $(LIBS)
 types.o: types.cc
 	$(CXX) $(CXXFLAGS) -c types.cc
 
 watchDog: watchDog.o
-	$(CXX) $(LDFLAGS) watchDog.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) watchDog.o $(LIBS)
 watchDog.o: watchDog.cc
 	$(CXX) $(CXXFLAGS) -c watchDog.cc
 
 batteryMonitor: batteryMonitor.o
-	$(CXX) $(LDFLAGS) batteryMonitor.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) batteryMonitor.o $(LIBS)
 batteryMonitor.o: batteryMonitor.cc
 	$(CXX) $(CXXFLAGS) -c batteryMonitor.cc
 
 sqlUpdater: sqlUpdater.o
-	$(CXX) $(LDFLAGS) sqlUpdater.o $(LIBS)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) sqlUpdater.o $(LIBS)
 sqlUpdater.o: sqlUpdater.cc
 	$(CXX) $(CXXFLAGS) -c sqlUpdater.cc
 

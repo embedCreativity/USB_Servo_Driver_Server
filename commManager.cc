@@ -1,34 +1,5 @@
 #include "commManager.h"
-
-#define MAX_SERIAL_ATTEMPTS 3
-#define SERIAL_RETRY_DELAY  1000 // 1 ms
-#define SERIAL_READ_DELAY 1000
-
-typedef struct _tlvPosition_T {
-    uint8_t type;
-    uint8_t length;
-    uint8_t motorA[3];
-    uint8_t motorB[3];
-    uint8_t motorC[3];
-    uint8_t motorD[3];
-    uint8_t servo1[3];
-    uint8_t servo2[3];
-    uint8_t servo3[3];
-    uint8_t servo4[3];
-    uint8_t servo5[3];
-    uint8_t servo6[3];
-    uint8_t servo7[3];
-    uint8_t servo8[3];
-    uint8_t extLed[3];
-    uint8_t checksum;
-} __attribute__ ((__packed__)) tlvPosition_T;
-
-typedef struct _tlvPowerManagement_T {
-    uint8_t type;
-    uint8_t length;
-    uint8_t config;
-    uint8_t checksum;
-} __attribute__ ((__packed__)) tlvPowerManagement_T;
+#include "commManagerTypes.h"
 
 void CommManager::Start()
 {
@@ -37,66 +8,35 @@ void CommManager::Start()
 
 void CommManager::StartCommManager()
 {
-
     cout << "Starting CommManager" << endl;
 
     while ( running )
     {
-        /* Look at stored command data. If it is different than
-            public command data, determine which kind of TLV is required
-            to address it :
-                tlvPosition_T cfgPosition;
-                tlvPowerManagement_T cfgPower;
-
-                // struct for holding data,len returned from SerialRead
-                serialRx_T serialRxData;
-                tlvAck_T tlvAck = { .type = TYPE_ACK, .length = LENGTH_ACK, .status = 0,
-                  .adcVoltage= 0, .adcCurrent = 0, .checksum = 0 };
-                  uint16_t shortADCVoltage;
-                  uint16_t shortADCCurrent;
-                  uint8_t bBoardStatus;
-        */
+        // If there are updates to our position data, send them out
         if ( lastData != controlData ) {
             if (!lastData.diffTypePosition(&controlData) ) {
-                if ( (status.commFault = !(SendPositionData(data, &length))) ) {
-                    // TODO: ?
-                    cout << "commManager -> commFault" << endl;
+                if ((status.commFault = !( SendPositionData() ) )) {
+                    cout << "commManager -> position data: commFault" << endl;
                 } else {
                     pubBoardStatus.notify(&status);
                 }
             }
             if (!lastData.diffTypePower(&controlData) ) {
-                cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config), cfgPower.length);
-                data = &cfgPower;
-                length = cfgPower.length;
+                if ((status.commFault = !( SendPowerData() ) )) {
+                    cout << "commManager -> powerdata: commFault" << endl;
+                } else {
+                    pubBoardStatus.notify(&status);
+                }
             }
         } else { // No updates to our data. Send heartbeat?
-
+            if ((status.commFault = !( SendHeartBeat() ) )) {
+                cout << "commManager -> heartbeat: commFault" << endl;
+            } else {
+                pubBoardStatus.notify(&status);
+            }
         }
-
-        // Translate command values to board TLV type data
-
-        // Send command data
-
-
-
-
-        // Get response
-
-        /* If response bad, send command again. Do no more than 3 times before
-            declaring fault
-        */
-
-        // Publish
-
-
-        usleep(500000);
-        cout << "commMgr V before " << status.voltage << endl;
-        status.voltage = status.voltage - 1.0;
-        cout << "commMgr V after " << status.voltage << endl;
-        cout << "commManager[motorA]: " <<
-            unsigned(controlData.motorA) << endl;
-        pubBoardStatus.notify(&status);
+        lastData = controlData; // update
+        usleep(INTERCOMMAND_REST); // rest before sending traffic again (throttle)
     }
 }
 
@@ -106,22 +46,22 @@ bool CommManager::SendPositionData(void)
 
     cfgPosition.type = TYPE_LOC_UPDATE;
     cfgPosition.length = LENGTH_LOC_UPDATE;
-    MapMotorValue(controlData.motorA, &cfgPosition.motorA);
-    MapMotorValue(controlData.motorB, &cfgPosition.motorB);
-    MapMotorValue(controlData.motorC, &cfgPosition.motorC);
-    MapMotorValue(controlData.motorD, &cfgPosition.motorD);
-    MapServoValue(controlData.servo1, &cfgPosition.servo1);
-    MapServoValue(controlData.servo2, &cfgPosition.servo2);
-    MapServoValue(controlData.servo3, &cfgPosition.servo3);
-    MapServoValue(controlData.servo4, &cfgPosition.servo4);
-    MapServoValue(controlData.servo5, &cfgPosition.servo5);
-    MapServoValue(controlData.servo6, &cfgPosition.servo6);
-    MapServoValue(controlData.servo7, &cfgPosition.servo7);
-    MapServoValue(controlData.servo8, &cfgPosition.servo8);
-    MapLedValue(controlData.extLed, &cfgPosition.extLed);
+    MapMotorValue(controlData.motorA, (uint8_t*)(&cfgPosition.motorA));
+    MapMotorValue(controlData.motorB, (uint8_t*)(&cfgPosition.motorB));
+    MapMotorValue(controlData.motorC, (uint8_t*)(&cfgPosition.motorC));
+    MapMotorValue(controlData.motorD, (uint8_t*)(&cfgPosition.motorD));
+    MapServoValue(controlData.servo1, (uint8_t*)(&cfgPosition.servo1));
+    MapServoValue(controlData.servo2, (uint8_t*)(&cfgPosition.servo2));
+    MapServoValue(controlData.servo3, (uint8_t*)(&cfgPosition.servo3));
+    MapServoValue(controlData.servo4, (uint8_t*)(&cfgPosition.servo4));
+    MapServoValue(controlData.servo5, (uint8_t*)(&cfgPosition.servo5));
+    MapServoValue(controlData.servo6, (uint8_t*)(&cfgPosition.servo6));
+    MapServoValue(controlData.servo7, (uint8_t*)(&cfgPosition.servo7));
+    MapServoValue(controlData.servo8, (uint8_t*)(&cfgPosition.servo8));
+    MapLedValue(controlData.extLed, (uint8_t*)(&cfgPosition.extLed));
     cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA), cfgPosition.length);
 
-    return SendCommand(&cfgPosition, cfgPosition.length);
+    return SendCommand((uint8_t*)(&cfgPosition), cfgPosition.length);
 }
 
 bool CommManager::SendPowerData(void)
@@ -140,7 +80,27 @@ bool CommManager::SendPowerData(void)
     cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
         cfgPower.length);
 
-    return SendCommand(&cfgPower, cfgPower.length);
+    return SendCommand((uint8_t*)(&cfgPower), cfgPower.length);
+}
+
+// TODO: create a heartbeat TLV between board and host
+bool CommManager::SendHeartBeat(void)
+{
+    tlvPowerManagement_T cfgPower;
+
+    cfgPower.type = TYPE_PWR_UPDATE;
+    cfgPower.length = LENGTH_PWR_UPDATE;
+    cfgPower.config = 0; // init
+    if ( controlData.motorPower ) {
+        cfgPower.config |= (1 << BS_PWR_M);
+    }
+    if ( controlData.hostPower ) {
+        cfgPower.config |= (1 << BS_PWR_C);
+    }
+    cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
+        cfgPower.length);
+
+    return SendCommand((uint8_t*)(&cfgPower), cfgPower.length);
 }
 
 bool CommManager::SendCommand( uint8_t *data, uint8_t length )
@@ -176,6 +136,8 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
 {
     int serialRxLen;
     uint8_t serialRxData[64];
+
+    tlvAck_T tlvAck;
 
     uint8_t offset; // offset into compiled buffer
     uint8_t i; // pointer in read data
@@ -251,7 +213,6 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
                 }
                 else { // Checksum verified!
                     status.status = tlvAck.status;
-                    bBoardStatus = tlvAck.status;
                     shortADCVoltage = tlvAck.adcVoltage;
                     shortADCCurrent = tlvAck.adcCurrent;
                     status.voltage = (shortADCVoltage / 4096.0) * 19.8;
@@ -268,7 +229,7 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
 
 uint8_t CommManager::ComputeChecksum(uint8_t *input, uint32_t length)
 {
-    int i;
+    uint8_t i;
     uint8_t checksum;
     checksum = 0;
 
@@ -279,7 +240,7 @@ uint8_t CommManager::ComputeChecksum(uint8_t *input, uint32_t length)
     return checksum;
 }
 
-void CommManager:MapMotorValue(int32_t power, uint8_t *ptr)
+void CommManager::MapMotorValue(int32_t power, uint8_t *ptr)
 {
     bool negative = false;
 
@@ -296,15 +257,15 @@ void CommManager:MapMotorValue(int32_t power, uint8_t *ptr)
     memcpy(ptr, &power, 3);
 }
 
-void CommManager:MapServoValue(uint32_t position, uint8_t *ptr)
+void CommManager::MapServoValue(uint32_t position, uint8_t *ptr)
 {
     // map API range to board's expected range
     position = SERVO_MIN_PERIOD + (position * API_SERVOPOS_SCALAR);
     // save into structure
-    memcpy(ptrMotor, &position, 3);
+    memcpy(ptr, &position, 3);
 }
 
-void CommManager:MapLedValue(uint32_t power, uint8_t *ptr)
+void CommManager::MapLedValue(uint32_t power, uint8_t *ptr)
 {
     // TODO: I think this is FUBAR
     power = power * API_LEDPOWER_SCALAR;
