@@ -1,6 +1,6 @@
 ProgramName := socketToSerial
 
-LIBS += -lsocket -lec_serial -pthread
+LIBS += -lsocket -lec_serial -lsqlite3 -pthread
 #LIBS += -lsocket -lec_serial -lsqlite3
 CXXFLAGS += -std=c++11 -g -Wall
 #CFLAGS += -std=c++11 -pthread -g -Wall

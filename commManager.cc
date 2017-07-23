@@ -38,6 +38,8 @@ void CommManager::StartCommManager()
         lastData = controlData; // update
         usleep(INTERCOMMAND_REST); // rest before sending traffic again (throttle)
     }
+
+    SerialClose(); // close serial port before leaving
 }
 
 bool CommManager::SendPositionData(void)
@@ -274,4 +276,11 @@ void CommManager::MapLedValue(uint32_t power, uint8_t *ptr)
     }
     memcpy(ptr, &power, 3);
 }
+
+bool CommManager::InitComms(char *port, int baudRate)
+{
+    return SerialInit(port, baudRate);
+}
+
+
 

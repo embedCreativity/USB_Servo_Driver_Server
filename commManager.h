@@ -95,8 +95,8 @@ public:
     // Call to remove subscriber
     void RemoveSubscriber(void (*callback)(palmettoStatus_T));
 
-    // debug
-    void ModStatus(void);
+    // Initialize serial port
+    bool InitComms(char *port, int baudRate);
 
     // publishers (socket&watchdog) set this
     ControlData controlData;
@@ -121,7 +121,7 @@ private:
     bool SendCommand(uint8_t *data, uint8_t length);
     bool SerialGetResponse( uint32_t timeout );
 
-    // data members
+    // published board status
     palmettoStatus_T status;
 
     // subscribers

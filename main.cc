@@ -30,8 +30,22 @@ void signal_handler(int sig)
     }
 }
 
-int main(void)
+int main(int argc, char *argv[])
 {
+
+    char serialPort[64];
+    int portNum;
+    int baudRate;
+
+    if (argc != 4) {
+        fprintf(stderr, "USAGE: %s <path to serial port> <baud Rate> <socket port number>\n", argv[0]);
+        exit(1);
+    }
+    strncpy(serialPort, (char*)argv[1], 64);
+    baudRate = atoi(argv[2]);
+    portNum = atoi(argv[3]);
+
+
     SocketInterface socket;
     CommManager commManager;
     Watchdog watchdog;
@@ -45,8 +59,13 @@ int main(void)
     signal(SIGQUIT, signal_handler);
 
     // init classes
-    socket.SetPort(SOCKET_PORT);
+    socket.SetPort(portNum);
     watchdog.SetControlSafeValues();
+    if ( !(commManager.InitComms(serialPort, baudRate)) )
+    {
+        cout << "Failed to set serial port parameters" << endl;
+        return -1;
+    }
 
     /*** Set up publisher/subscribers ***/
     // Subscribers to commManager's board status data
