@@ -13,7 +13,7 @@ void Watchdog::StartWatchdog(void)
     while(running)
     {
         // do something
-        usleep(1000); // sleep for 1 ms
+        usleep(500000); // sleep for 500ms
         if ( watchdogCount > WATCHDOG_TIMEOUT ) {
             pubCommManager.notify(&controlData);
             cout << "Timeout!" << endl;

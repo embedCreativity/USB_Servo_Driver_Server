@@ -91,10 +91,15 @@ int main(int argc, char *argv[])
     }
 
     commManager.Stop();
-    socket.Stop();
+    cout << "commManager finished." << endl;
     watchdog.Stop();
+    cout << "watchdog finished." << endl;
     batteryMonitor.Stop();
+    cout << "batteryMonitor finished." << endl;
     sqlUpdater.Stop();
+    cout << "sqlUpdater finished." << endl;
+    socket.Stop();
+    cout << "socket finished." << endl;
 
     return 0;
 }

@@ -22,12 +22,11 @@ void SqlUpdater::StartSqlUpdater(void)
         usleep(SQL_MONITOR_RATE);
         sqlReturn = sqlite3_open(pathToSqlDb, &connDB);
         if (sqlReturn) {
-            cout << "sqlUpdater: Cannot open database: " << sqlite3_errmsg(connDB) << endl;
             continue;
         }
         // TODO: protect voltage/current with mutex
         snprintf((char*)cmd, CMDBUFLEN, SQL_INSERT, status.voltage, status.current, SQL_TRIM );
-        sqlReturn  = sqlite3_exec(connDB, (char*)cmd, NULL, 0, &zErrMsg);
+        sqlReturn  = sqlite3_exec(connDB, cmd, NULL, 0, &zErrMsg);
         if( sqlReturn != SQLITE_OK ){
             sqlite3_free(zErrMsg);
         }

@@ -36,9 +36,6 @@ typedef struct _palmettoStatus_T {
     bool commFault;
 } palmettoStatus_T;
 
-
-
-
 class ControlData {
 public:
 

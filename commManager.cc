@@ -64,9 +64,11 @@ bool CommManager::SendPositionData(void)
     MapServoValue(controlData.servo7, (uint8_t*)(&cfgPosition.servo7));
     MapServoValue(controlData.servo8, (uint8_t*)(&cfgPosition.servo8));
     MapLedValue(controlData.extLed, (uint8_t*)(&cfgPosition.extLed));
-    cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA), cfgPosition.length);
+    cfgPosition.checksum = ComputeChecksum((uint8_t*)(&cfgPosition.motorA),
+        cfgPosition.length);
 
-    return SendCommand((uint8_t*)(&cfgPosition), cfgPosition.length);
+    return SendCommand((uint8_t*)(&cfgPosition),
+        (uint8_t)sizeof(tlvPosition_T));
 }
 
 bool CommManager::SendPowerData(void)
@@ -85,7 +87,8 @@ bool CommManager::SendPowerData(void)
     cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
         cfgPower.length);
 
-    return SendCommand((uint8_t*)(&cfgPower), cfgPower.length);
+    return SendCommand((uint8_t*)(&cfgPower),
+        (uint8_t)sizeof(tlvPowerManagement_T));
 }
 
 // TODO: create a heartbeat TLV between board and host
@@ -105,7 +108,8 @@ bool CommManager::SendHeartBeat(void)
     cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
         cfgPower.length);
 
-    return SendCommand((uint8_t*)(&cfgPower), cfgPower.length);
+    return SendCommand((uint8_t*)(&cfgPower),
+        (uint8_t)sizeof(tlvPowerManagement_T));
 }
 
 bool CommManager::SendCommand( uint8_t *data, uint8_t length )
@@ -142,7 +146,7 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
     int serialRxLen;
     uint8_t serialRxData[64];
 
-    tlvAck_T tlvAck;
+    tlvAck_T tlvAck = { .type = TYPE_ACK, .length = LENGTH_ACK };
 
     uint8_t offset; // offset into compiled buffer
     uint8_t i; // pointer in read data
@@ -159,11 +163,10 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
         // read enough data to fill tlv struct
         serialRxLen = SerialRead((uint8_t*)(&(serialRxData)),
             (uint32_t)(sizeof(tlvAck_T) - offset), timeout);
+
         if ( serialRxLen == SERIAL_ERROR_CODE ) {
-            cout << "commManager-> serial error" << endl;
             return false;
         } else if ( serialRxLen == SERIAL_TIMEOUT_CODE ) {
-            cout << "commManager-> serial timeout" << endl;
             return false;
         } else if ( serialRxLen == 0 ) { // just start over...
             continue;
@@ -231,7 +234,6 @@ bool CommManager::SerialGetResponse( uint32_t timeout )
     }
 }
 
-
 uint8_t CommManager::ComputeChecksum(uint8_t *input, uint32_t length)
 {
     uint8_t i;
@@ -282,7 +284,17 @@ void CommManager::MapLedValue(uint32_t power, uint8_t *ptr)
 
 bool CommManager::InitComms(char *port, int baudRate)
 {
-    return SerialInit(port, baudRate);
+    bool foo;
+
+    foo = SerialInit(port, baudRate);
+    if ( foo ) {
+        cout << "commManager-> Serial Port port opened!" << endl;
+    } else {
+        cout << "ERROR: commManager-> Serial Port port failed!" << endl;
+    }
+
+    return foo;
+    //return SerialInit(port, baudRate);
 }
 
 
