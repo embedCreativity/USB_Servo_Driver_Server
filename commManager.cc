@@ -20,6 +20,7 @@ void CommManager::StartCommManager()
             bool status;
 
             do {
+                cout << "NOTICE: commManager sending kill command!" << endl;
                 if ( ! (status = SendEmergencyShutdown()) ) {
                     usleep(INTERCOMMAND_REST);
                 }
@@ -104,7 +105,6 @@ bool CommManager::SendPowerData(void)
         (uint8_t)sizeof(tlvPowerManagement_T));
 }
 
-// TODO: create a heartbeat TLV between board and host
 bool CommManager::SendHeartBeat(void)
 {
     tlvHeartBeat_T cfgHeartBeat;
@@ -116,15 +116,16 @@ bool CommManager::SendHeartBeat(void)
     return SendCommand((uint8_t*)(&cfgHeartBeat),
         (uint8_t)sizeof(tlvHeartBeat_T));
 }
-// TODO: create an emergency shutdown TLV between board and host
+
 bool CommManager::SendEmergencyShutdown(void)
 {
     tlvShutDown_T cfgShutDown;
-
-    cfgShutDown.type = TYPE_HEARTBEAT;
-    cfgShutDown.length = LENGTH_HEARTBEAT;
+    cfgShutDown.type = TYPE_SHUTDOWN;
+    cfgShutDown.length = LENGTH_SHUTDOWN;
     cfgShutDown.delay = SHUTDOWN_DELAY;
     cfgShutDown.checksum = SHUTDOWN_DELAY; // 1 data byte - checksum matches
+
+    cout << "commManager SENDING KILL COMMAND" << endl;
 
     // We have SHUTDOWN_DELAY# seconds before Palmetto pulls power on us
     return SendCommand((uint8_t*)(&cfgShutDown),
