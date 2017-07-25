@@ -40,7 +40,6 @@ public:
     void update(Publisher* who, void* what = 0)
     {
         *pControlData = *((ControlData*)what);
-        cout << "commManager-> controlData Updated" << endl;
     };
 
     ControlData *pControlData;
@@ -119,7 +118,8 @@ private:
     bool SendPowerData(void);
     bool SendHeartBeat(void);
     bool SendCommand(uint8_t *data, uint8_t length);
-    bool SerialGetResponse( uint32_t timeout );
+    bool SerialGetResponse(uint32_t timeout);
+    bool SendEmergencyShutdown(void);
 
     // published board status
     palmettoStatus_T status;

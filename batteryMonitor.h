@@ -17,6 +17,7 @@
 #define CELL_COUNT 3
 #define CELL_LOW_VOLTAGE 3.0
 #define MONITOR_RATE 1000000 // check once per second
+#define LOW_SUBSEQUENT_READINGS 10 // number of consecutive readings before suicide
 
 using namespace std;
 

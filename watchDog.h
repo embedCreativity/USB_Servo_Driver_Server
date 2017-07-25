@@ -13,7 +13,8 @@
 #include "pubsub.h"
 #include "types.h"
 
-#define WATCHDOG_TIMEOUT 2000 // milliseconds
+#define WATCHDOG_RATE 10000 // check every 10ms
+#define WATCHDOG_TIMEOUT 50 // 10ms * 50 = 500milliseconds
 
 using namespace std;
 
@@ -28,10 +29,25 @@ public:
     void update(Publisher* who, void* what = 0)
     {
         *pCount = 0; // reset
-        cout << "watchDog-> reset!" << endl;
     };
 
     uint32_t *pCount;
+};
+
+class ClientSubscriber: public Subscriber
+{
+public:
+    ClientSubscriber(bool *clockRunning)
+    {
+        pClockRunning = clockRunning;
+    };
+
+    void update(Publisher* who, void* what = 0)
+    {
+        *pClockRunning = *((bool*)what);
+    };
+
+    bool *pClockRunning;
 };
 
 class Watchdog {
@@ -42,8 +58,10 @@ public:
     Watchdog()
     {
         running = true;
+        clockRunning = false;
         watchdogCount = 0;
         subWatchdog = new WatchdogSubscriber(&watchdogCount);
+        subClient = new ClientSubscriber(&clockRunning);
     };
 
     ~Watchdog() {};
@@ -52,10 +70,17 @@ public:
     void Start();
     void Stop() { running = false; t->join(); };
 
-    // data members
-    WatchdogSubscriber *subWatchdog;
+    // socket's control of the running clock
+    void StartClock();
+    void StopClock();
 
+    // pub/sub classes
+    WatchdogSubscriber *subWatchdog;
+    ClientSubscriber *subClient;
+
+    // pub/sub data
     uint32_t watchdogCount;
+    bool clockRunning;
 
     // watchDog's safe copy of control data
     ControlData controlData;

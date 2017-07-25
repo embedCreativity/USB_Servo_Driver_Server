@@ -15,6 +15,18 @@ void CommManager::StartCommManager()
 
     while ( running )
     {
+        // if we're low on battery, request Palmetto to kill us. Get your affairs in order first!
+        if (bLowVoltage) {
+            bool status;
+
+            do {
+                if ( ! (status = SendEmergencyShutdown()) ) {
+                    usleep(INTERCOMMAND_REST);
+                }
+            } while (!status);
+            return; // kill this thread - no more comms with board
+        }
+
         // If there are updates to our position data, send them out
         if ( lastData != controlData ) {
             if (!lastData.diffTypePosition(&controlData) ) {
@@ -31,7 +43,7 @@ void CommManager::StartCommManager()
                     pubBoardStatus.notify(&status);
                 }
             }
-        } else { // No updates to our data. Send heartbeat?
+        } else { // No updates to our data. Send heartbeat
             if ((status.commFault = !( SendHeartBeat() ) )) {
                 cout << "commManager -> heartbeat: commFault" << endl;
             } else {
@@ -84,8 +96,9 @@ bool CommManager::SendPowerData(void)
     if ( controlData.hostPower ) {
         cfgPower.config |= (1 << BS_PWR_C);
     }
-    cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
-        cfgPower.length);
+    cfgPower.checksum = cfgPower.config; // 1 data byte; checksum always matches
+    //cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
+    //    cfgPower.length);
 
     return SendCommand((uint8_t*)(&cfgPower),
         (uint8_t)sizeof(tlvPowerManagement_T));
@@ -94,22 +107,28 @@ bool CommManager::SendPowerData(void)
 // TODO: create a heartbeat TLV between board and host
 bool CommManager::SendHeartBeat(void)
 {
-    tlvPowerManagement_T cfgPower;
+    tlvHeartBeat_T cfgHeartBeat;
 
-    cfgPower.type = TYPE_PWR_UPDATE;
-    cfgPower.length = LENGTH_PWR_UPDATE;
-    cfgPower.config = 0; // init
-    if ( controlData.motorPower ) {
-        cfgPower.config |= (1 << BS_PWR_M);
-    }
-    if ( controlData.hostPower ) {
-        cfgPower.config |= (1 << BS_PWR_C);
-    }
-    cfgPower.checksum = ComputeChecksum((uint8_t*)(&cfgPower.config),
-        cfgPower.length);
+    cfgHeartBeat.type = TYPE_HEARTBEAT;
+    cfgHeartBeat.length = LENGTH_HEARTBEAT;
+    cfgHeartBeat.checksum = 0; // no data bytes - always 0
 
-    return SendCommand((uint8_t*)(&cfgPower),
-        (uint8_t)sizeof(tlvPowerManagement_T));
+    return SendCommand((uint8_t*)(&cfgHeartBeat),
+        (uint8_t)sizeof(tlvHeartBeat_T));
+}
+// TODO: create an emergency shutdown TLV between board and host
+bool CommManager::SendEmergencyShutdown(void)
+{
+    tlvShutDown_T cfgShutDown;
+
+    cfgShutDown.type = TYPE_HEARTBEAT;
+    cfgShutDown.length = LENGTH_HEARTBEAT;
+    cfgShutDown.delay = SHUTDOWN_DELAY;
+    cfgShutDown.checksum = SHUTDOWN_DELAY; // 1 data byte - checksum matches
+
+    // We have SHUTDOWN_DELAY# seconds before Palmetto pulls power on us
+    return SendCommand((uint8_t*)(&cfgShutDown),
+        (uint8_t)sizeof(tlvShutDown_T));
 }
 
 bool CommManager::SendCommand( uint8_t *data, uint8_t length )
@@ -252,8 +271,11 @@ void CommManager::MapMotorValue(int32_t power, uint8_t *ptr)
     bool negative = false;
 
     if ( power < 0 ) {
-       negative = true;
        power = abs(power);
+       negative = true;
+    }
+    if ( power == 0 ) {
+        power = MOTOR_REFRESH_PERIOD - 1; // off
     } else {
         power = MOTOR_REFRESH_PERIOD - MOTOR_MIN_SPIN - (power * API_MOTORPOWER_SCALAR);
     }

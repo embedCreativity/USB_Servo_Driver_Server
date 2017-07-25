@@ -7,6 +7,8 @@ void BatteryMonitor::Start(void)
 
 void BatteryMonitor::StartBatteryMonitor(void)
 {
+    uint8_t i;
+
     cout << "Starting BatteryMonitor" << endl;
 
     while(running)
@@ -14,7 +16,12 @@ void BatteryMonitor::StartBatteryMonitor(void)
         // do something
         usleep(MONITOR_RATE); // sleep for 1 ms
         if ( (CELL_COUNT * CELL_LOW_VOLTAGE) > status.voltage ) {
-            pubCommMgrAlert.notify();
+            i += 1; // increment
+            if ( i >= LOW_SUBSEQUENT_READINGS ) {
+                pubCommMgrAlert.notify(); // kill thy self
+            }
+        } else {
+            i = 0; // reset counter
         }
     }
 }

@@ -10,14 +10,13 @@
 *   Types                                           *
 ****************************************************/
 
-/****************************************************
-*   Class Declaractions                             *
-****************************************************/
 #define MAX_SERIAL_ATTEMPTS     3
 #define SERIAL_RETRY_DELAY      1000 // 1 ms (in microseconds)
 #define SERIAL_READ_DELAY       1000 // 1 ms (in microseconds)
 #define SERIAL_TIMEOUT          100 // 100 ms
-#define INTERCOMMAND_REST       1000 // 1 ms
+#define INTERCOMMAND_REST       25000 // 25 ms
+
+#define SHUTDOWN_DELAY          30 // Palmetto will wait 30 seconds before pulling power on us
 
 // TLV-related defs
 #define TLV_OVERHEAD    3 // type, length, checksum fields
@@ -29,6 +28,12 @@
 
 #define TYPE_PWR_UPDATE     0xBB
 #define LENGTH_PWR_UPDATE   1
+
+#define TYPE_HEARTBEAT      0xDD
+#define LENGTH_HEARTBEAT    0
+
+#define TYPE_SHUTDOWN       0xEE
+#define LENGTH_SHUTDOWN     1
 
 #define TYPE_ACK            0xCC
 #define LENGTH_ACK          5
@@ -72,6 +77,19 @@ typedef struct _tlvPowerManagement_T {
     uint8_t config;
     uint8_t checksum;
 } __attribute__ ((__packed__)) tlvPowerManagement_T;
+
+typedef struct _tlvHeartBeat_T {
+    uint8_t type;
+    uint8_t length;
+    uint8_t checksum;
+} __attribute__ ((__packed__)) tlvHeartBeat_T;
+
+typedef struct _tlvShutDown_T {
+    uint8_t type;
+    uint8_t length;
+    uint8_t delay;
+    uint8_t checksum;
+} __attribute__ ((__packed__)) tlvShutDown_T;
 
 typedef struct _tlvAck_T {
     uint8_t     type;

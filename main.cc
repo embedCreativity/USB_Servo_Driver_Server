@@ -71,8 +71,9 @@ int main(int argc, char *argv[])
     commManager.pubBoardStatus.subscribe(socket.subCommManager);
     commManager.pubBoardStatus.subscribe(batteryMonitor.subCommManager);
     commManager.pubBoardStatus.subscribe(sqlUpdater.subCommManager);
-    // Watchdog subscribes to being fed by socket
+    // Watchdog subscribes to being fed by socket and is toggled by clients connecting/disconnecting
     socket.pubWatchdog.subscribe(watchdog.subWatchdog);
+    socket.pubClient.subscribe(watchdog.subClient);
     // socket and watchdog both can set the control data being sent out commManager
     socket.pubCommManager.subscribe(commManager.subControlData);
     watchdog.pubCommManager.subscribe(commManager.subControlData);

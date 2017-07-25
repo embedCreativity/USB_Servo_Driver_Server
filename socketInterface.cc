@@ -15,6 +15,8 @@ void SocketInterface::Stop()
 
 void SocketInterface::StartServer()
 {
+    bool clientConnected;
+
     cout << "socket -> Opening port " << port << endl;
     if ( socketIntf.OpenAndConnect(port) ) {
         //syslog(LOG_INFO, "Connected!");
@@ -29,7 +31,12 @@ void SocketInterface::StartServer()
     {
         //syslog(LOG_INFO, "Client connected.");
         cout << "socket -> Client connected." << endl;
+        clientConnected = true;
+        pubClient.notify(&clientConnected); // let subscribers know we have a client
+
         HandleClient();
+        clientConnected = false;
+        pubClient.notify(&clientConnected); // let subscribers know client disconnected
         //syslog(LOG_INFO, "Client disconnected.");
         cout << "socket -> Client disconnected." << endl;
 
@@ -69,11 +76,6 @@ void SocketInterface::HandleClient( void )
             }
             socketIntf.Write(socketBuf, strlen((char*)socketBuf));
         } else {
-            //syslog(LOG_INFO, "Client disconnected - resetting board\n");
-            cout << "socket -> client disconnected" << endl;
-            // TODO: publish a watchdog reset type message immediately
-            //  to remove power and reset to safe values
-
             socketIntf.Close(); // close client connection
             socketIntf.Close(); // close socket // may not be the best idea, ok for now
             break;

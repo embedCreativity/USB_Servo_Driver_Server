@@ -13,6 +13,7 @@
 #include "pubsub.h"
 #include "types.h"
 #include "statusSubscriber.h"
+#include "watchDog.h"
 
 using namespace std;
 
@@ -48,6 +49,7 @@ public:
 
     Publisher pubWatchdog;
     Publisher pubCommManager;
+    Publisher pubClient;
 
 private:
 
