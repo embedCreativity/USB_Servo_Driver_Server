@@ -12,6 +12,7 @@ void CommManager::Start()
 void CommManager::StartCommManager()
 {
     cout << "Starting CommManager" << endl;
+    ControlData capturedData; // used to provide a snapshot of current data while processing
 
     while ( running )
     {
@@ -28,16 +29,18 @@ void CommManager::StartCommManager()
             return; // kill this thread - no more comms with board
         }
 
+        capturedData = controlData; // snapshot
+
         // If there are updates to our position data, send them out
-        if ( lastData != controlData ) {
-            if (!lastData.diffTypePosition(&controlData) ) {
+        if ( lastData != capturedData ) {
+            if (!lastData.diffTypePosition(&capturedData) ) {
                 if ((status.commFault = !( SendPositionData() ) )) {
                     cout << "commManager -> position data: commFault" << endl;
                 } else {
                     pubBoardStatus.notify(&status);
                 }
             }
-            if (!lastData.diffTypePower(&controlData) ) {
+            if (!lastData.diffTypePower(&capturedData) ) {
                 if ((status.commFault = !( SendPowerData() ) )) {
                     cout << "commManager -> powerdata: commFault" << endl;
                 } else {
@@ -51,7 +54,7 @@ void CommManager::StartCommManager()
                 pubBoardStatus.notify(&status);
             }
         }
-        lastData = controlData; // update
+        lastData = capturedData; // update
         usleep(INTERCOMMAND_REST); // rest before sending traffic again (throttle)
     }
 
